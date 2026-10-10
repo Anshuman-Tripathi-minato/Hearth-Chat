@@ -36,7 +36,7 @@ import java.util.concurrent.Executors;
 final class LanServer {
     private static final String TAG = "HearthLan";
     private static final int PORT = 8787;
-    private static final int MAX_TEXT_BYTES = 1024 * 1024;
+    private static final int MAX_TEXT_BYTES = 10 * 1024 * 1024;
     private static final long MAX_MEDIA_BYTES = 120L * 1024 * 1024;
     private final Context context;
     private final File mediaDirectory;
@@ -121,7 +121,7 @@ final class LanServer {
             }
             if ("/api/messages".equals(path)) {
                 if (bodyLength < 0 || bodyLength > MAX_TEXT_BYTES) {
-                    respond(output, 413, "Payload Too Large", "application/json", jsonError("Message is too large"));
+                    respond(output, 413, "Payload Too Large", "application/json", jsonError("Messages can be up to 10 MB"));
                     return;
                 }
                 handlePostMessage(input, output, (int) bodyLength);
@@ -179,7 +179,7 @@ final class LanServer {
             String id = clean(value.optString("id", ""), 80);
             String sender = clean(value.optString("sender", ""), 80);
             String senderName = clean(value.optString("senderName", "Someone"), 48);
-            String text = clean(value.optString("text", ""), 5000);
+            String text = clean(value.optString("text", ""), Integer.MAX_VALUE);
             long createdAt = value.optLong("createdAt", System.currentTimeMillis());
             if (id.isEmpty() || sender.isEmpty() || text.trim().isEmpty()) {
                 respond(output, 400, "Bad Request", "application/json", jsonError("Add a message first"));

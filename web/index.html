@@ -113,6 +113,10 @@
     .disclaimer { color: #9aa49e; font-size: 10px; line-height: 1.6; }
     .toast { position: fixed; z-index: 5; left: 50%; bottom: 24px; max-width: calc(100vw - 32px); padding: 11px 16px; transform: translate(-50%, 12px); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; color: white; background: #1c342c; box-shadow: var(--shadow); opacity: 0; pointer-events: none; font-size: 12px; transition: opacity .2s, transform .2s; }
     .toast.show { transform: translate(-50%, 0); opacity: 1; }
+    .message-menu { position: fixed; z-index: 10; min-width: 176px; padding: 5px; border: 1px solid #e3eae4; border-radius: 12px; background: white; box-shadow: 0 12px 32px rgba(20,42,30,.18); }
+    .message-menu button { width: 100%; display: flex; align-items: center; gap: 9px; padding: 10px 11px; border: 0; border-radius: 8px; color: #294336; background: transparent; text-align: left; font-size: 12px; cursor: pointer; }
+    .message-menu button:hover { background: #eff7f1; }
+    .message-menu svg { width: 16px; height: 16px; color: #6b8e77; }
     .hidden { display: none !important; }
     @media (max-width: 1050px) {
       .layout { grid-template-columns: 196px minmax(340px, 1fr); }
@@ -180,12 +184,12 @@
         <div class="composer-wrap">
           <div id="filePreview" class="file-preview"><span aria-hidden="true">▧</span><span id="filePreviewName" class="file-preview-name"></span><button id="removeFile" class="remove-file" aria-label="Remove attachment">×</button></div>
           <form id="composer" class="composer">
-            <textarea id="messageInput" rows="1" maxlength="5000" placeholder="Write a message to your home…" aria-label="Write a message"></textarea>
+            <textarea id="messageInput" rows="1" placeholder="Write a message to your home…" aria-label="Write a message"></textarea>
             <div class="composer-bottom">
               <div class="composer-tools">
                 <button id="attachButton" class="tool-button" type="button" title="Share a photo or video" aria-label="Share a photo or video"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="8.3" cy="9" r="1.4" stroke="currentColor" stroke-width="1.5"/><path d="m5 17 4.7-4.6a1 1 0 0 1 1.4 0L14 15l2.1-2a1 1 0 0 1 1.4 0L20 15.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                 <input id="fileInput" type="file" accept="image/*,video/*" class="hidden">
-                <span class="composer-hint">Photos and videos up to 120 MB · Enter to send</span>
+                <span class="composer-hint">Long messages · Photos and videos up to 120 MB · Enter to send</span>
               </div>
               <button id="sendButton" class="send-button" type="submit"><svg viewBox="0 0 24 24" fill="none"><path d="m4 4 17 8-17 8 2-7 8-1-8-1-2-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Send</button>
             </div>
@@ -208,6 +212,7 @@
       </aside>
     </div>
   </div>
+  <div id="messageMenu" class="message-menu hidden" role="menu" aria-label="Message actions"></div>
   <div id="toast" class="toast" role="status"></div>
   <script>
     (() => {
@@ -237,6 +242,7 @@
       const input = $('messageInput');
       const fileInput = $('fileInput');
       const PAGE_BASE = location.origin && location.origin !== 'null' ? location.origin : '';
+      const messageMenu = $('messageMenu');
 
       function makeId() {
         return (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -277,10 +283,11 @@
       function openDb() {
         return new Promise((resolve) => {
           if (!('indexedDB' in window)) return resolve(null);
-          const request = indexedDB.open('hearth-local', 1);
+          const request = indexedDB.open('hearth-local', 2);
           request.onupgradeneeded = () => {
             const db = request.result;
             if (!db.objectStoreNames.contains('media')) db.createObjectStore('media', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('messages')) db.createObjectStore('messages', { keyPath: 'id' });
           };
           request.onsuccess = () => resolve(request.result);
           request.onerror = () => resolve(null);
@@ -304,11 +311,25 @@
           tx.onerror = () => resolve();
         });
       }
+      function dbGetMessages() {
+        return new Promise(resolve => {
+          if (!state.db || !state.db.objectStoreNames.contains('messages')) return resolve([]);
+          const request = state.db.transaction('messages', 'readonly').objectStore('messages').getAll();
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => resolve([]);
+        });
+      }
       function persistMessages() {
         const trimmed = state.messages.slice(-MAX_BROWSER_CACHE);
-        try { localStorage.setItem(STORE_KEY, JSON.stringify(trimmed)); } catch (_) {
-          showToast('This browser is low on storage. Your phone still has the full chat.');
+        if (state.db && state.db.objectStoreNames.contains('messages')) {
+          try {
+            const tx = state.db.transaction('messages', 'readwrite');
+            const store = tx.objectStore('messages');
+            trimmed.forEach(message => store.put(message));
+          } catch (_) {}
         }
+        const localFallback = trimmed.filter(message => safeText(message.text).length <= 12000).slice(-200);
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(localFallback)); } catch (_) {}
       }
       function cacheMedia(message) {
         if (!message.mediaUrl || !state.online || !PAGE_BASE) return;
@@ -371,6 +392,17 @@
           const mine = message.sender === state.device;
           const row = document.createElement('article');
           row.className = `message-row${mine ? ' mine' : ''}`;
+          row.addEventListener('contextmenu', event => openMessageMenu(event, message));
+          let holdTimer = null;
+          row.addEventListener('touchstart', event => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            holdTimer = setTimeout(() => openMessageMenu({ clientX: touch.clientX, clientY: touch.clientY, preventDefault() {} }, message), 560);
+          }, { passive: true });
+          const clearHold = () => { if (holdTimer) clearTimeout(holdTimer); holdTimer = null; };
+          row.addEventListener('touchmove', clearHold, { passive: true });
+          row.addEventListener('touchend', clearHold, { passive: true });
+          row.addEventListener('touchcancel', clearHold, { passive: true });
           const avatar = document.createElement('span');
           avatar.className = 'message-avatar';
           avatar.textContent = initials(message.senderName);
@@ -426,6 +458,65 @@
           if (Array.isArray(saved)) saved.forEach(message => addMessage(message, false));
         } catch (_) { localStorage.removeItem(STORE_KEY); }
       }
+      function closeMessageMenu() {
+        messageMenu.classList.add('hidden');
+        messageMenu.replaceChildren();
+      }
+      function openMessageMenu(event, message) {
+        if (event.preventDefault) event.preventDefault();
+        messageMenu.replaceChildren();
+        if (message.text) addMenuItem('Copy text', '<svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.6"/></svg>', () => copyMessageText(message.text));
+        if (message.mediaUrl) addMenuItem(message.kind === 'video' ? 'Download video' : 'Download image', '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>', () => downloadMedia(message));
+        if (!messageMenu.childElementCount) return;
+        messageMenu.classList.remove('hidden');
+        const bounds = messageMenu.getBoundingClientRect();
+        messageMenu.style.left = `${Math.max(8, Math.min(event.clientX, innerWidth - bounds.width - 8))}px`;
+        messageMenu.style.top = `${Math.max(8, Math.min(event.clientY, innerHeight - bounds.height - 8))}px`;
+      }
+      function addMenuItem(label, icon, action) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.setAttribute('role', 'menuitem');
+        button.innerHTML = icon;
+        const text = document.createElement('span');
+        text.textContent = label;
+        button.append(text);
+        button.addEventListener('click', () => { closeMessageMenu(); action(); });
+        messageMenu.append(button);
+      }
+      async function copyMessageText(text) {
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            showToast('Message copied.');
+            return;
+          }
+        } catch (_) {}
+        const temporary = document.createElement('textarea');
+        temporary.value = text;
+        temporary.setAttribute('readonly', '');
+        temporary.style.position = 'fixed';
+        temporary.style.left = '-9999px';
+        document.body.append(temporary);
+        temporary.select();
+        const copied = document.execCommand('copy');
+        temporary.remove();
+        showToast(copied ? 'Message copied.' : 'Could not copy this message.');
+      }
+      function downloadMedia(message) {
+        const source = message.mediaUrl && PAGE_BASE
+          ? PAGE_BASE + message.mediaUrl
+          : state.mediaUrls.get(message.id);
+        if (!source) return showToast('Reconnect to the room before downloading this media.');
+        const link = document.createElement('a');
+        link.href = source;
+        link.download = safeText(message.mediaName) || (message.kind === 'video' ? 'hearth-video' : 'hearth-image');
+        link.rel = 'noopener';
+        document.body.append(link);
+        link.click();
+        link.remove();
+        showToast('Download started.');
+      }
       async function getJson(url, options) {
         const response = await fetch(url, options);
         const data = await response.json().catch(() => ({}));
@@ -450,6 +541,7 @@
           let more = true;
           while (more) {
             const page = await getJson(`${PAGE_BASE}/api/messages?after=${encodeURIComponent(state.cursor)}`);
+            setOnline(true);
             (page.messages || []).forEach(message => addMessage(message));
             more = !!page.more;
             if (!more) break;
@@ -537,6 +629,11 @@
         $('filePreview').classList.add('visible');
       });
       $('removeFile').addEventListener('click', clearSelectedFile);
+      messageMenu.addEventListener('pointerdown', event => event.stopPropagation());
+      document.addEventListener('pointerdown', event => {
+        if (!messageMenu.contains(event.target)) closeMessageMenu();
+      });
+      window.addEventListener('resize', closeMessageMenu);
       async function copyRoomAddress() {
         const address = state.info && state.info.url;
         if (!address) return showToast('Connect the room phone to Wi‑Fi first.');
@@ -567,8 +664,15 @@
       loadLocalMessages();
       openDb().then(db => {
         state.db = db;
-        renderMessages();
-        if (db) state.messages.forEach(cacheMedia);
+        if (!db) { renderMessages(); return; }
+        dbGetMessages().then(saved => {
+          saved.forEach(message => addMessage(message, false));
+          state.messages.forEach(message => {
+            if (message.mediaUrl) cacheMedia(message);
+          });
+          persistMessages();
+          renderMessages();
+        });
       });
       discoverRoom().then(pollRoom);
       setInterval(pollRoom, 1800);

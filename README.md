@@ -11,6 +11,8 @@ A local chat room for devices on one home Wi-Fi network. The Android app keeps t
 
 The app starts its local room service when it opens and restarts that service after the phone reboots. Android shows an ongoing notification while the room is available. Messages and media are stored in the app's private phone storage. A browser saves messages it receives locally and catches up when it reconnects. Keep a browser tab open if you need to read its saved messages while the phone is offline.
 
+Long-press a message to copy its text. Long-press a shared photo or video to download it; APK downloads are saved to the phone's Downloads folder. The Android app opens the system photo/video picker when you attach media.
+
 ## Build the Android app
 
 Open this folder in Android Studio and build the `android` application, or run:
@@ -26,4 +28,5 @@ The debug APK is written to `android/build/outputs/apk/debug/android-debug.apk`.
 - The Android phone is the room host; other devices must be able to reach it on the same Wi-Fi. Guest networks and router client isolation can block this.
 - This first version uses one shared home room, with no accounts or end-to-end encryption. Use it only on a trusted home network.
 - Shared photos and videos are limited to 120 MB per file.
+- There is no 5,000-character input cap. A single message can be up to 10 MB to keep transfers and phone storage reliable.
 - Android may stop background work if Hearth Chat is force-stopped or the system restricts the app. Opening it again starts the room service.
