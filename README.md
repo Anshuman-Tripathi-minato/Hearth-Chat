@@ -1,15 +1,15 @@
 # Hearth Chat
 
-A local chat room for devices on one home Wi-Fi network. The Android app keeps the room available and stores chat history and shared files on the phone. A laptop joins by opening the phone's room address in a browser.
+A local chat room for Android phones, laptops, and tablets on one Wi-Fi network. Hearth Chat phones discover each other automatically and elect one phone to host the shared room. The other phones open that room in the app; a laptop joins with the room address shown in the Android notification or in the chat's “Connect a laptop” card.
 
 ## How to use
 
-1. Install and open Hearth Chat on the Android phone that will host the room.
-2. Keep the app in the background. Its ongoing notification shows the room address.
-3. On a laptop or tablet on the same Wi-Fi, open `http://PHONE-IP:8787` in a browser. The address is also shown in the chat's “Connect a laptop” card.
+1. Connect all devices to the same Wi-Fi network. Guest networks or router client isolation must be disabled.
+2. Install and open Hearth Chat on each Android phone. The phones discover the shared room automatically; one becomes the host and the others join it.
+3. Open the address shown in any phone's ongoing notification on the laptop or tablet. It looks like `http://192.168.x.x:8787`. A phone already in the room also shows this address in the “Connect a laptop” card.
 4. Use the name button in the top right to set the name shown beside your messages.
 
-The app starts its local room service when it opens and restarts that service after the phone reboots. Android shows an ongoing notification while the room is available. Messages and media are stored in the app's private phone storage. A browser saves messages it receives locally and catches up when it reconnects. Keep a browser tab open if you need to read its saved messages while the phone is offline.
+The app starts room discovery when it opens and restarts after the phone reboots. Android shows whether this phone hosts or joined the room, plus its address. Messages and media are stored on the elected host phone, so keep that phone powered on and connected to Wi-Fi. Other Android phones and browser clients use the same room and see the same history. A browser also saves messages it receives locally and catches up when it reconnects.
 
 Long-press a message to copy its text. Long-press a shared photo or video to download it; APK downloads are saved to the phone's Downloads folder. The Android app opens the system photo/video picker when you attach media.
 
@@ -25,8 +25,8 @@ The debug APK is written to `android/build/outputs/apk/debug/android-debug.apk`.
 
 ## Current limits
 
-- The Android phone is the room host; other devices must be able to reach it on the same Wi-Fi. Guest networks and router client isolation can block this.
+- One Android phone hosts the room; the other phones discover and join it. Other devices must be able to reach the host on the same Wi-Fi. Guest networks, router client isolation, or blocked multicast discovery can prevent joining.
 - This first version uses one shared home room, with no accounts or end-to-end encryption. Use it only on a trusted home network.
 - Shared photos and videos are limited to 120 MB per file.
 - There is no 5,000-character input cap. A single message can be up to 10 MB to keep transfers and phone storage reliable.
-- Android may stop background work if Hearth Chat is force-stopped or the system restricts the app. Opening it again starts the room service.
+- Keep the host phone connected and Hearth Chat running for the room to stay available. Android may stop background work if Hearth Chat is force-stopped or the system restricts the app; opening the app again restarts discovery.

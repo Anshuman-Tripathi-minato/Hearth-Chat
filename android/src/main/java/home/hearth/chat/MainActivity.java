@@ -29,8 +29,21 @@ public final class MainActivity extends Activity {
     private WebView webView;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private int loadAttempts;
+    private String loadedRoomUrl = "";
     private ValueCallback<Uri[]> uploadCallback;
     private PendingDownload pendingDownload;
+    private final Runnable roomUrlWatcher = new Runnable() {
+        @Override public void run() {
+            if (webView == null || isFinishing()) return;
+            String roomUrl = getRoomUrl();
+            if (!roomUrl.isEmpty() && !roomUrl.equals(loadedRoomUrl)) {
+                loadedRoomUrl = roomUrl;
+                loadAttempts = 0;
+                webView.loadUrl(pageUrl(roomUrl));
+            }
+            handler.postDelayed(this, 750);
+        }
+    };
 
     private static final class PendingDownload {
         final String url;
@@ -66,10 +79,11 @@ public final class MainActivity extends Activity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
-                if (request.isForMainFrame() && request.getUrl().toString().startsWith("http://127.0.0.1:8787/")
-                        && loadAttempts < 20) {
+                String activeUrl = getRoomUrl();
+                if (request.isForMainFrame() && !activeUrl.isEmpty()
+                        && request.getUrl().toString().startsWith(pageUrl(activeUrl)) && loadAttempts < 20) {
                     loadAttempts++;
-                    handler.postDelayed(() -> view.loadUrl("http://127.0.0.1:8787/"), 500);
+                    handler.postDelayed(() -> view.loadUrl(pageUrl(getRoomUrl())), 500);
                 }
             }
         });
@@ -98,7 +112,17 @@ public final class MainActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         setContentView(webView);
-        handler.postDelayed(() -> webView.loadUrl("http://127.0.0.1:8787/"), 300);
+        handler.post(roomUrlWatcher);
+    }
+
+    private String getRoomUrl() {
+        return getSharedPreferences(LanService.PREFS_NAME, MODE_PRIVATE)
+                .getString(LanService.KEY_ROOM_URL, "");
+    }
+
+    private static String pageUrl(String roomUrl) {
+        if (roomUrl == null || roomUrl.isEmpty()) return "";
+        return roomUrl.endsWith("/") ? roomUrl : roomUrl + "/";
     }
 
     private void beginDownload(PendingDownload download) {
@@ -170,6 +194,7 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        handler.removeCallbacks(roomUrlWatcher);
         if (uploadCallback != null) uploadCallback.onReceiveValue(null);
         uploadCallback = null;
         super.onDestroy();

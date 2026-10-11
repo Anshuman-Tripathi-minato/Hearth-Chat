@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Inet4Address;
+import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -35,7 +36,7 @@ import java.util.concurrent.Executors;
 
 final class LanServer {
     private static final String TAG = "HearthLan";
-    private static final int PORT = 8787;
+    static final int PORT = 8787;
     private static final int MAX_TEXT_BYTES = 10 * 1024 * 1024;
     private static final long MAX_MEDIA_BYTES = 120L * 1024 * 1024;
     private final Context context;
@@ -57,12 +58,23 @@ final class LanServer {
         loadMessages();
     }
 
-    void start() {
-        if (running) return;
-        running = true;
-        Thread acceptThread = new Thread(this::acceptConnections, "hearth-http");
-        acceptThread.setDaemon(true);
-        acceptThread.start();
+    boolean start() {
+        if (running) return true;
+        try {
+            ServerSocket server = new ServerSocket();
+            server.setReuseAddress(true);
+            server.bind(new InetSocketAddress(PORT));
+            listener = server;
+            running = true;
+            Thread acceptThread = new Thread(() -> acceptConnections(server), "hearth-http");
+            acceptThread.setDaemon(true);
+            acceptThread.start();
+            return true;
+        } catch (IOException e) {
+            running = false;
+            Log.e(TAG, "Could not listen on port " + PORT, e);
+            return false;
+        }
     }
 
     void close() {
@@ -74,9 +86,8 @@ final class LanServer {
         clients.shutdownNow();
     }
 
-    private void acceptConnections() {
-        try (ServerSocket server = new ServerSocket(PORT)) {
-            server.setReuseAddress(true);
+    private void acceptConnections(ServerSocket server) {
+        try {
             listener = server;
             while (running) {
                 Socket socket = server.accept();
@@ -86,7 +97,7 @@ final class LanServer {
         } catch (IOException e) {
             if (running) Log.e(TAG, "Could not listen on port " + PORT, e);
         } finally {
-            listener = null;
+            if (listener == server) listener = null;
         }
     }
 
