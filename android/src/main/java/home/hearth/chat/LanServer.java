@@ -38,7 +38,7 @@ final class LanServer {
     private static final String TAG = "HearthLan";
     static final int PORT = 8787;
     private static final int MAX_TEXT_BYTES = 10 * 1024 * 1024;
-    private static final long MAX_MEDIA_BYTES = 120L * 1024 * 1024;
+    private static final long MAX_MEDIA_BYTES = 1024L * 1024 * 1024;
     private final Context context;
     private final File mediaDirectory;
     private final File messagesFile;
@@ -177,7 +177,7 @@ final class LanServer {
             return;
         }
         if (path.startsWith("/media/")) {
-            serveMedia(path, headers.get("range"), output, headOnly);
+            serveMedia(path, rawQuery, headers.get("range"), output, headOnly);
             return;
         }
         respond(output, 404, "Not Found", "text/plain", "Not found".getBytes(StandardCharsets.UTF_8), headOnly);
@@ -222,16 +222,14 @@ final class LanServer {
                                  Map<String, String> headers, long length) throws IOException {
         Map<String, String> params = query(rawQuery);
         String contentType = headers.getOrDefault("content-type", "application/octet-stream").split(";", 2)[0].trim().toLowerCase(Locale.ROOT);
-        if (!(contentType.startsWith("image/") || contentType.startsWith("video/"))) {
-            respond(output, 415, "Unsupported Media Type", "application/json", jsonError("Choose an image or video"));
-            return;
-        }
+        String originalName = clean(new File(params.getOrDefault("name", "File")).getName(), 160);
         if (length <= 0 || length > MAX_MEDIA_BYTES) {
-            respond(output, 413, "Payload Too Large", "application/json", jsonError("Media must be smaller than 120 MB"));
+            respond(output, 413, "Payload Too Large", "application/json", jsonError("Files must be smaller than 1 GB"));
             return;
         }
         String id = UUID.randomUUID().toString();
-        String extension = extensionFor(contentType);
+        String extension = extensionFor(originalName, contentType);
+        contentType = MIME_TYPES.getOrDefault(extension, "application/octet-stream");
         File target = new File(mediaDirectory, id + extension);
         try (FileOutputStream file = new FileOutputStream(target)) {
             copyExactly(input, file, length);
@@ -242,7 +240,7 @@ final class LanServer {
         String sender = clean(params.getOrDefault("sender", ""), 80);
         String senderName = clean(params.getOrDefault("senderName", "Someone"), 48);
         String caption = clean(params.getOrDefault("caption", ""), 1000);
-        String originalName = clean(new File(params.getOrDefault("name", "Media")).getName(), 160);
+        if (originalName.isEmpty()) originalName = "File" + extension;
         if (sender.isEmpty()) {
             target.delete();
             respond(output, 400, "Bad Request", "application/json", jsonError("Device name is missing"));
@@ -256,7 +254,7 @@ final class LanServer {
                 saved.put("senderName", senderName.isEmpty() ? "Someone" : senderName);
                 saved.put("text", caption);
                 saved.put("createdAt", System.currentTimeMillis());
-                saved.put("kind", contentType.startsWith("video/") ? "video" : "image");
+                saved.put("kind", kindFor(contentType));
                 saved.put("mediaUrl", "/media/" + id + extension);
                 saved.put("mediaName", originalName);
                 saved.put("mediaType", contentType);
@@ -272,7 +270,7 @@ final class LanServer {
         }
     }
 
-    private void serveMedia(String path, String range, OutputStream output, boolean headOnly) throws IOException {
+    private void serveMedia(String path, String rawQuery, String range, OutputStream output, boolean headOnly) throws IOException {
         String name = path.substring("/media/".length());
         if (name.contains("/") || name.contains("\\") || name.contains("..")) {
             respond(output, 400, "Bad Request", "text/plain", new byte[0], headOnly);
@@ -283,6 +281,15 @@ final class LanServer {
             respond(output, 404, "Not Found", "text/plain", "Media not found".getBytes(StandardCharsets.UTF_8), headOnly);
             return;
         }
+        Map<String, String> params = query(rawQuery);
+        String type = mimeFor(file);
+        boolean inline = isInlineSafe(type) && !params.containsKey("download");
+        String downloadName = clean(new File(params.getOrDefault("name", name)).getName(), 160);
+        if (downloadName.isEmpty()) downloadName = name;
+        String disposition = "Content-Disposition: " + (inline ? "inline" : "attachment") +
+                "; filename=\"" + downloadName.replaceAll("[^\\x20-\\x7e]|[\"\\\\]", "_") + "\"" +
+                "; filename*=UTF-8''" + encodeRfc5987(downloadName) + "\r\n" +
+                "X-Content-Type-Options: nosniff\r\n";
         long start = 0;
         long end = file.length() - 1;
         boolean partial = false;
@@ -294,14 +301,14 @@ final class LanServer {
                 if (start < 0 || end < start || end >= file.length()) throw new NumberFormatException();
                 partial = true;
             } catch (NumberFormatException e) {
-                writeHeaders(output, 416, "Range Not Satisfiable", mimeFor(file), 0,
+                writeHeaders(output, 416, "Range Not Satisfiable", type, 0,
                         "Content-Range: bytes */" + file.length() + "\r\n", false);
                 return;
             }
         }
         long size = end - start + 1;
-        writeHeaders(output, partial ? 206 : 200, partial ? "Partial Content" : "OK", mimeFor(file), size,
-                "Accept-Ranges: bytes\r\n" + (partial ? "Content-Range: bytes " + start + "-" + end + "/" + file.length() + "\r\n" : ""), headOnly);
+        writeHeaders(output, partial ? 206 : 200, partial ? "Partial Content" : "OK", type, size,
+                disposition + "Accept-Ranges: bytes\r\n" + (partial ? "Content-Range: bytes " + start + "-" + end + "/" + file.length() + "\r\n" : ""), headOnly);
         if (headOnly) return;
         try (FileInputStream in = new FileInputStream(file)) {
             in.skip(start);
@@ -497,31 +504,79 @@ final class LanServer {
         output.flush();
     }
 
-    private static String extensionFor(String type) {
-        switch (type) {
-            case "image/jpeg": return ".jpg";
-            case "image/png": return ".png";
-            case "image/gif": return ".gif";
-            case "image/webp": return ".webp";
-            case "image/heic": return ".heic";
-            case "video/mp4": return ".mp4";
-            case "video/webm": return ".webm";
-            case "video/quicktime": return ".mov";
-            default: return ".bin";
+    private static final Map<String, String> MIME_TYPES = new HashMap<>();
+    static {
+        String[][] known = {
+                {".jpg", "image/jpeg"}, {".jpeg", "image/jpeg"}, {".png", "image/png"}, {".gif", "image/gif"},
+                {".webp", "image/webp"}, {".heic", "image/heic"}, {".heif", "image/heif"}, {".bmp", "image/bmp"},
+                {".avif", "image/avif"}, {".svg", "image/svg+xml"},
+                {".mp4", "video/mp4"}, {".m4v", "video/mp4"}, {".webm", "video/webm"}, {".mov", "video/quicktime"},
+                {".mkv", "video/x-matroska"}, {".3gp", "video/3gpp"}, {".avi", "video/x-msvideo"},
+                {".mp3", "audio/mpeg"}, {".m4a", "audio/mp4"}, {".aac", "audio/aac"}, {".wav", "audio/wav"},
+                {".ogg", "audio/ogg"}, {".oga", "audio/ogg"}, {".opus", "audio/opus"}, {".flac", "audio/flac"},
+                {".pdf", "application/pdf"}, {".txt", "text/plain"}, {".csv", "text/csv"}, {".md", "text/markdown"},
+                {".json", "application/json"}, {".rtf", "application/rtf"},
+                {".doc", "application/msword"},
+                {".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+                {".xls", "application/vnd.ms-excel"},
+                {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+                {".ppt", "application/vnd.ms-powerpoint"},
+                {".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+                {".odt", "application/vnd.oasis.opendocument.text"},
+                {".ods", "application/vnd.oasis.opendocument.spreadsheet"},
+                {".odp", "application/vnd.oasis.opendocument.presentation"},
+                {".epub", "application/epub+zip"},
+                {".zip", "application/zip"}, {".rar", "application/vnd.rar"}, {".7z", "application/x-7z-compressed"},
+                {".tar", "application/x-tar"}, {".gz", "application/gzip"}, {".tgz", "application/gzip"},
+                {".apk", "application/vnd.android.package-archive"},
+        };
+        for (String[] pair : known) MIME_TYPES.put(pair[0], pair[1]);
+    }
+
+    /** Keeps the sender's file extension (sanitized) so downloads open in the right app. */
+    private static String extensionFor(String name, String type) {
+        int dot = name.lastIndexOf('.');
+        if (dot >= 0 && dot < name.length() - 1) {
+            String extension = name.substring(dot).toLowerCase(Locale.ROOT);
+            if (extension.matches("\\.[a-z0-9]{1,10}")) return extension;
         }
+        for (Map.Entry<String, String> entry : MIME_TYPES.entrySet()) {
+            if (entry.getValue().equals(type)) return entry.getKey();
+        }
+        return ".bin";
     }
 
     private static String mimeFor(File file) {
         String name = file.getName().toLowerCase(Locale.ROOT);
-        if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
-        if (name.endsWith(".png")) return "image/png";
-        if (name.endsWith(".gif")) return "image/gif";
-        if (name.endsWith(".webp")) return "image/webp";
-        if (name.endsWith(".heic")) return "image/heic";
-        if (name.endsWith(".mp4")) return "video/mp4";
-        if (name.endsWith(".webm")) return "video/webm";
-        if (name.endsWith(".mov")) return "video/quicktime";
-        return "application/octet-stream";
+        int dot = name.lastIndexOf('.');
+        String known = dot >= 0 ? MIME_TYPES.get(name.substring(dot)) : null;
+        return known == null ? "application/octet-stream" : known;
+    }
+
+    private static String kindFor(String type) {
+        if (type.startsWith("image/") && !type.equals("image/svg+xml")) return "image";
+        if (type.startsWith("video/")) return "video";
+        if (type.startsWith("audio/")) return "audio";
+        return "file";
+    }
+
+    /** Only previews that cannot run script in the room page are shown inline; everything else downloads. */
+    private static boolean isInlineSafe(String type) {
+        return (type.startsWith("image/") && !type.equals("image/svg+xml")) || type.startsWith("video/")
+                || type.startsWith("audio/") || type.equals("application/pdf") || type.equals("text/plain");
+    }
+
+    private static String encodeRfc5987(String value) {
+        StringBuilder out = new StringBuilder();
+        for (byte b : value.getBytes(StandardCharsets.UTF_8)) {
+            int c = b & 0xff;
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || "-._~".indexOf(c) >= 0) {
+                out.append((char) c);
+            } else {
+                out.append('%').append(String.format(Locale.ROOT, "%02X", c));
+            }
+        }
+        return out.toString();
     }
 
     static String getWifiAddress(Context context) {

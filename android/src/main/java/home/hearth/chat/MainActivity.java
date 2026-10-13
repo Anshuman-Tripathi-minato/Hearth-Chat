@@ -99,7 +99,7 @@ public final class MainActivity extends Activity {
                 } catch (Exception e) {
                     uploadCallback.onReceiveValue(null);
                     uploadCallback = null;
-                    Toast.makeText(MainActivity.this, "Could not open the photo and video picker.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(MainActivity.this, "Could not open the file picker.", Toast.LENGTH_LONG).show();
                     return true;
                 }
             }
@@ -139,7 +139,7 @@ public final class MainActivity extends Activity {
         try {
             String filename = URLUtil.guessFileName(download.url, download.contentDisposition, download.mimeType);
             filename = filename.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
-            if (filename.isEmpty()) filename = "hearth-shared-media";
+            if (filename.isEmpty()) filename = "hearth-shared-file";
             if (filename.length() > 120) filename = filename.substring(0, 120);
 
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(download.url));
