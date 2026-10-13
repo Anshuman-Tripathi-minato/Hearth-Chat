@@ -25,8 +25,11 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -34,9 +37,16 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocket;
+
 final class LanServer {
     private static final String TAG = "HearthLan";
     static final int PORT = 8787;
+    static final int SECURE_PORT = 8788;
+    private static final int MAX_SIGNAL_BYTES = 256 * 1024;
+    private static final long PEER_TIMEOUT_MS = 12_000;
+    private static final long SIGNAL_TTL_MS = 60_000;
     private static final int MAX_TEXT_BYTES = 10 * 1024 * 1024;
     private static final long MAX_MEDIA_BYTES = 1024L * 1024 * 1024;
     private final Context context;
@@ -48,6 +58,11 @@ final class LanServer {
     private long nextSequence = 1;
     private volatile boolean running;
     private ServerSocket listener;
+    private ServerSocket secureListener;
+    private final Object peerLock = new Object();
+    private final Map<String, JSONObject> peers = new HashMap<>();
+    private final List<JSONObject> signals = new ArrayList<>();
+    private long nextSignal = 1;
 
     LanServer(Context context) {
         this.context = context.getApplicationContext();
@@ -69,11 +84,28 @@ final class LanServer {
             Thread acceptThread = new Thread(() -> acceptConnections(server), "hearth-http");
             acceptThread.setDaemon(true);
             acceptThread.start();
+            startSecure();
             return true;
         } catch (IOException e) {
             running = false;
             Log.e(TAG, "Could not listen on port " + PORT, e);
             return false;
+        }
+    }
+
+    /** HTTPS lets browsers use the microphone and camera for voice messages and calls. */
+    private void startSecure() {
+        try {
+            SSLContext tls = SelfSignedCert.sslContext(context.getFilesDir());
+            SSLServerSocket server = (SSLServerSocket) tls.getServerSocketFactory().createServerSocket();
+            server.setReuseAddress(true);
+            server.bind(new InetSocketAddress(SECURE_PORT));
+            secureListener = server;
+            Thread acceptThread = new Thread(() -> acceptConnections(server), "hearth-https");
+            acceptThread.setDaemon(true);
+            acceptThread.start();
+        } catch (Exception e) {
+            Log.e(TAG, "Could not start the secure room on port " + SECURE_PORT, e);
         }
     }
 
@@ -83,21 +115,22 @@ final class LanServer {
             if (listener != null) listener.close();
         } catch (IOException ignored) {
         }
+        try {
+            if (secureListener != null) secureListener.close();
+        } catch (IOException ignored) {
+        }
         clients.shutdownNow();
     }
 
     private void acceptConnections(ServerSocket server) {
         try {
-            listener = server;
             while (running) {
                 Socket socket = server.accept();
                 socket.setSoTimeout(30_000);
                 clients.execute(() -> handleClient(socket));
             }
         } catch (IOException e) {
-            if (running) Log.e(TAG, "Could not listen on port " + PORT, e);
-        } finally {
-            if (listener == server) listener = null;
+            if (running) Log.e(TAG, "Could not listen on port " + server.getLocalPort(), e);
         }
     }
 
@@ -130,7 +163,22 @@ final class LanServer {
                 respond(output, 405, "Method Not Allowed", "text/plain", "Method not allowed".getBytes(StandardCharsets.UTF_8));
                 return;
             }
-            if ("/api/messages".equals(path)) {
+            if ("/api/signal".equals(path) || "/api/react".equals(path) || "/api/delete".equals(path)) {
+                if (bodyLength <= 0 || bodyLength > MAX_SIGNAL_BYTES) {
+                    respond(output, 413, "Payload Too Large", "application/json", jsonError("Request too large"));
+                    return;
+                }
+                JSONObject body;
+                try {
+                    body = new JSONObject(new String(readExactly(input, (int) bodyLength), StandardCharsets.UTF_8));
+                } catch (JSONException e) {
+                    respond(output, 400, "Bad Request", "application/json", jsonError("Invalid request"));
+                    return;
+                }
+                if ("/api/signal".equals(path)) handleSignal(body, output);
+                else if ("/api/react".equals(path)) handleReact(body, output);
+                else handleDelete(body, output);
+            } else if ("/api/messages".equals(path)) {
                 if (bodyLength < 0 || bodyLength > MAX_TEXT_BYTES) {
                     respond(output, 413, "Payload Too Large", "application/json", jsonError("Messages can be up to 10 MB"));
                     return;
@@ -164,6 +212,7 @@ final class LanServer {
                 info.put("ip", ip);
                 info.put("port", PORT);
                 info.put("url", "0.0.0.0".equals(ip) ? "" : "http://" + ip + ":" + PORT);
+                info.put("secureUrl", "0.0.0.0".equals(ip) || secureListener == null ? "" : "https://" + ip + ":" + SECURE_PORT);
                 info.put("room", "Home room");
             } catch (JSONException ignored) {
             }
@@ -172,8 +221,16 @@ final class LanServer {
         }
         if ("/api/messages".equals(path)) {
             long after = parseLong(query(rawQuery).get("after"), 0);
-            JSONObject page = messagesAfter(after);
-            respond(output, 200, "OK", "application/json; charset=utf-8", page.toString().getBytes(StandardCharsets.UTF_8), headOnly);
+            byte[] page;
+            synchronized (dataLock) {
+                page = messagesAfter(after).toString().getBytes(StandardCharsets.UTF_8);
+            }
+            respond(output, 200, "OK", "application/json; charset=utf-8", page, headOnly);
+            return;
+        }
+        if ("/api/presence".equals(path)) {
+            byte[] body = presence(query(rawQuery)).toString().getBytes(StandardCharsets.UTF_8);
+            respond(output, 200, "OK", "application/json; charset=utf-8", body, headOnly);
             return;
         }
         if (path.startsWith("/media/")) {
@@ -192,6 +249,7 @@ final class LanServer {
             String senderName = clean(value.optString("senderName", "Someone"), 48);
             String text = clean(value.optString("text", ""), Integer.MAX_VALUE);
             long createdAt = value.optLong("createdAt", System.currentTimeMillis());
+            boolean isCall = "call".equals(value.optString("kind"));
             if (id.isEmpty() || sender.isEmpty() || text.trim().isEmpty()) {
                 respond(output, 400, "Bad Request", "application/json", jsonError("Add a message first"));
                 return;
@@ -206,13 +264,16 @@ final class LanServer {
                     saved.put("senderName", senderName.isEmpty() ? "Someone" : senderName);
                     saved.put("text", text);
                     saved.put("createdAt", createdAt);
-                    saved.put("kind", "text");
+                    saved.put("kind", isCall ? "call" : "text");
+                    if (isCall) saved.put("call", cleanCall(value.optJSONObject("call")));
+                    JSONObject reply = cleanReply(value.optJSONObject("replyTo"));
+                    if (reply != null) saved.put("replyTo", reply);
                     saved.put("seq", nextSequence++);
                     messages.put(saved);
                     persistMessages();
                 }
             }
-            respond(output, 201, "Created", "application/json; charset=utf-8", saved.toString().getBytes(StandardCharsets.UTF_8));
+            respond(output, 201, "Created", "application/json; charset=utf-8", snapshot(saved));
         } catch (JSONException e) {
             respond(output, 400, "Bad Request", "application/json", jsonError("Invalid message"));
         }
@@ -259,14 +320,211 @@ final class LanServer {
                 saved.put("mediaName", originalName);
                 saved.put("mediaType", contentType);
                 saved.put("mediaBytes", length);
+                if ("1".equals(params.get("voice")) && contentType.startsWith("audio/")) {
+                    saved.put("voice", true);
+                    saved.put("duration", Math.max(0, Math.min(3600, parseLong(params.get("duration"), 0))));
+                }
+                if (params.containsKey("replyId")) {
+                    JSONObject reply = new JSONObject();
+                    reply.put("id", params.get("replyId"));
+                    reply.put("name", params.getOrDefault("replyName", ""));
+                    reply.put("snippet", params.getOrDefault("replySnippet", ""));
+                    JSONObject cleaned = cleanReply(reply);
+                    if (cleaned != null) saved.put("replyTo", cleaned);
+                }
                 saved.put("seq", nextSequence++);
                 messages.put(saved);
                 persistMessages();
             }
-            respond(output, 201, "Created", "application/json; charset=utf-8", saved.toString().getBytes(StandardCharsets.UTF_8));
+            respond(output, 201, "Created", "application/json; charset=utf-8", snapshot(saved));
         } catch (JSONException e) {
             target.delete();
             respond(output, 500, "Internal Server Error", "application/json", jsonError("Could not save media"));
+        }
+    }
+
+    private byte[] snapshot(JSONObject message) {
+        synchronized (dataLock) {
+            return message.toString().getBytes(StandardCharsets.UTF_8);
+        }
+    }
+
+    private static JSONObject cleanReply(JSONObject reply) throws JSONException {
+        if (reply == null) return null;
+        String id = clean(reply.optString("id", ""), 80);
+        if (id.isEmpty()) return null;
+        JSONObject result = new JSONObject();
+        result.put("id", id);
+        result.put("name", clean(reply.optString("name", ""), 48));
+        result.put("snippet", clean(reply.optString("snippet", ""), 160));
+        return result;
+    }
+
+    private static JSONObject cleanCall(JSONObject call) throws JSONException {
+        JSONObject result = new JSONObject();
+        if (call == null) return result;
+        result.put("video", call.optBoolean("video", false));
+        result.put("status", clean(call.optString("status", "ended"), 20));
+        result.put("duration", Math.max(0, Math.min(86_400, call.optLong("duration", 0))));
+        result.put("with", clean(call.optString("with", ""), 48));
+        return result;
+    }
+
+    /** Heartbeat from a device: records it as online and hands back the people online plus any call signals for it. */
+    private JSONObject presence(Map<String, String> params) {
+        String device = clean(params.getOrDefault("device", ""), 80);
+        long after = parseLong(params.get("after"), 0);
+        long now = System.currentTimeMillis();
+        JSONObject result = new JSONObject();
+        JSONArray online = new JSONArray();
+        JSONArray inbox = new JSONArray();
+        long last = after;
+        synchronized (peerLock) {
+            try {
+                if (!device.isEmpty()) {
+                    JSONObject peer = new JSONObject();
+                    peer.put("device", device);
+                    peer.put("name", clean(params.getOrDefault("name", "Someone"), 48));
+                    peer.put("typing", "1".equals(params.get("typing")));
+                    peer.put("busy", "1".equals(params.get("busy")));
+                    peer.put("lastSeen", now);
+                    peers.put(device, peer);
+                }
+                Iterator<Map.Entry<String, JSONObject>> peerIterator = peers.entrySet().iterator();
+                while (peerIterator.hasNext()) {
+                    JSONObject peer = peerIterator.next().getValue();
+                    if (now - peer.optLong("lastSeen") > PEER_TIMEOUT_MS) peerIterator.remove();
+                    else online.put(peer);
+                }
+                Iterator<JSONObject> signalIterator = signals.iterator();
+                while (signalIterator.hasNext()) {
+                    JSONObject signal = signalIterator.next();
+                    boolean mine = device.equals(signal.optString("to"));
+                    if (now - signal.optLong("at") > SIGNAL_TTL_MS || (mine && signal.optLong("id") <= after)) {
+                        signalIterator.remove();
+                    } else if (mine) {
+                        inbox.put(signal);
+                        last = Math.max(last, signal.optLong("id"));
+                    }
+                }
+                result.put("peers", online);
+                result.put("signals", inbox);
+                result.put("next", last);
+                result.put("now", now);
+            } catch (JSONException ignored) {
+            }
+        }
+        return result;
+    }
+
+    private void handleSignal(JSONObject body, OutputStream output) throws IOException {
+        String from = clean(body.optString("from", ""), 80);
+        String to = clean(body.optString("to", ""), 80);
+        String type = clean(body.optString("type", ""), 24);
+        if (from.isEmpty() || to.isEmpty() || type.isEmpty()) {
+            respond(output, 400, "Bad Request", "application/json", jsonError("Missing call details"));
+            return;
+        }
+        try {
+            JSONObject signal = new JSONObject();
+            synchronized (peerLock) {
+                signal.put("id", nextSignal++);
+                signal.put("from", from);
+                signal.put("fromName", clean(body.optString("fromName", "Someone"), 48));
+                signal.put("to", to);
+                signal.put("type", type);
+                signal.put("callId", clean(body.optString("callId", ""), 80));
+                Object data = body.opt("data");
+                if (data != null) signal.put("data", data);
+                signal.put("at", System.currentTimeMillis());
+                signals.add(signal);
+                if (signals.size() > 2000) signals.remove(0);
+            }
+            respond(output, 201, "Created", "application/json; charset=utf-8", "{\"ok\":true}".getBytes(StandardCharsets.UTF_8));
+        } catch (JSONException e) {
+            respond(output, 400, "Bad Request", "application/json", jsonError("Invalid signal"));
+        }
+    }
+
+    /** Toggles one device's emoji reaction; the message gets a new sequence number so every client picks up the change. */
+    private void handleReact(JSONObject body, OutputStream output) throws IOException {
+        String id = clean(body.optString("id", ""), 80);
+        String device = clean(body.optString("device", ""), 80);
+        String emoji = clean(body.optString("emoji", ""), 16);
+        if (id.isEmpty() || device.isEmpty() || emoji.isEmpty()) {
+            respond(output, 400, "Bad Request", "application/json", jsonError("Missing reaction"));
+            return;
+        }
+        try {
+            JSONObject saved;
+            synchronized (dataLock) {
+                saved = findMessage(id);
+                if (saved == null || saved.optBoolean("deleted")) {
+                    respond(output, 404, "Not Found", "application/json", jsonError("Message not found"));
+                    return;
+                }
+                JSONObject reactions = saved.optJSONObject("reactions");
+                if (reactions == null) reactions = new JSONObject();
+                JSONArray who = reactions.optJSONArray(emoji);
+                JSONArray next = new JSONArray();
+                boolean removed = false;
+                if (who != null) {
+                    for (int i = 0; i < who.length(); i++) {
+                        if (device.equals(who.optString(i))) removed = true;
+                        else next.put(who.optString(i));
+                    }
+                }
+                if (!removed) {
+                    if (reactions.length() >= 24 && who == null) {
+                        respond(output, 400, "Bad Request", "application/json", jsonError("Too many reactions"));
+                        return;
+                    }
+                    next.put(device);
+                }
+                if (next.length() == 0) reactions.remove(emoji);
+                else reactions.put(emoji, next);
+                saved.put("reactions", reactions);
+                saved.put("seq", nextSequence++);
+                persistMessages();
+            }
+            respond(output, 200, "OK", "application/json; charset=utf-8", snapshot(saved));
+        } catch (JSONException e) {
+            respond(output, 400, "Bad Request", "application/json", jsonError("Invalid reaction"));
+        }
+    }
+
+    /** Deletes a message for everyone. Only the device that sent it may do this; its shared file is removed too. */
+    private void handleDelete(JSONObject body, OutputStream output) throws IOException {
+        String id = clean(body.optString("id", ""), 80);
+        String device = clean(body.optString("device", ""), 80);
+        try {
+            JSONObject saved;
+            String mediaUrl;
+            synchronized (dataLock) {
+                saved = findMessage(id);
+                if (saved == null) {
+                    respond(output, 404, "Not Found", "application/json", jsonError("Message not found"));
+                    return;
+                }
+                if (device.isEmpty() || !device.equals(saved.optString("sender"))) {
+                    respond(output, 403, "Forbidden", "application/json", jsonError("You can only delete your own messages"));
+                    return;
+                }
+                mediaUrl = saved.optString("mediaUrl", "");
+                String[] cleared = {"text", "mediaUrl", "mediaName", "mediaType", "mediaBytes", "voice", "duration", "reactions", "replyTo", "call"};
+                for (String key : cleared) saved.remove(key);
+                saved.put("text", "");
+                saved.put("deleted", true);
+                saved.put("seq", nextSequence++);
+                persistMessages();
+            }
+            if (mediaUrl.startsWith("/media/")) {
+                String name = mediaUrl.substring("/media/".length());
+                if (!name.contains("/") && !name.contains("..")) new File(mediaDirectory, name).delete();
+            }
+            respond(output, 200, "OK", "application/json; charset=utf-8", snapshot(saved));
+        } catch (JSONException e) {
+            respond(output, 400, "Bad Request", "application/json", jsonError("Invalid request"));
         }
     }
 
@@ -324,23 +582,22 @@ final class LanServer {
     }
 
     private JSONObject messagesAfter(long after) {
-        JSONArray batch = new JSONArray();
-        long last = after;
-        boolean more = false;
+        List<JSONObject> newer = new ArrayList<>();
         synchronized (dataLock) {
             for (int i = 0; i < messages.length(); i++) {
                 JSONObject message = messages.optJSONObject(i);
-                if (message == null) continue;
-                long seq = message.optLong("seq", 0);
-                if (seq > after) {
-                    if (batch.length() >= 1000) {
-                        more = true;
-                        break;
-                    }
-                    batch.put(message);
-                    last = Math.max(last, seq);
-                }
+                if (message != null && message.optLong("seq", 0) > after) newer.add(message);
             }
+        }
+        // Edited messages get fresh sequence numbers, so page in sequence order to keep the client cursor correct.
+        Collections.sort(newer, (a, b) -> Long.compare(a.optLong("seq", 0), b.optLong("seq", 0)));
+        boolean more = newer.size() > 1000;
+        if (more) newer = newer.subList(0, 1000);
+        JSONArray batch = new JSONArray();
+        long last = after;
+        for (JSONObject message : newer) {
+            batch.put(message);
+            last = Math.max(last, message.optLong("seq", 0));
         }
         JSONObject result = new JSONObject();
         try {
@@ -498,6 +755,7 @@ final class LanServer {
                 "Connection: close\r\n" +
                 "Access-Control-Allow-Origin: *\r\n" +
                 "Access-Control-Allow-Methods: GET, POST, OPTIONS, HEAD\r\n" +
+                "Access-Control-Allow-Private-Network: true\r\n" +
                 "Access-Control-Allow-Headers: Content-Type, Range\r\n" +
                 "Cache-Control: no-store\r\n" + extra + "\r\n";
         output.write(headers.getBytes(StandardCharsets.ISO_8859_1));
@@ -512,7 +770,7 @@ final class LanServer {
                 {".avif", "image/avif"}, {".svg", "image/svg+xml"},
                 {".mp4", "video/mp4"}, {".m4v", "video/mp4"}, {".webm", "video/webm"}, {".mov", "video/quicktime"},
                 {".mkv", "video/x-matroska"}, {".3gp", "video/3gpp"}, {".avi", "video/x-msvideo"},
-                {".mp3", "audio/mpeg"}, {".m4a", "audio/mp4"}, {".aac", "audio/aac"}, {".wav", "audio/wav"},
+                {".mp3", "audio/mpeg"}, {".weba", "audio/webm"}, {".m4a", "audio/mp4"}, {".aac", "audio/aac"}, {".wav", "audio/wav"},
                 {".ogg", "audio/ogg"}, {".oga", "audio/ogg"}, {".opus", "audio/opus"}, {".flac", "audio/flac"},
                 {".pdf", "application/pdf"}, {".txt", "text/plain"}, {".csv", "text/csv"}, {".md", "text/markdown"},
                 {".json", "application/json"}, {".rtf", "application/rtf"},
@@ -535,6 +793,7 @@ final class LanServer {
 
     /** Keeps the sender's file extension (sanitized) so downloads open in the right app. */
     private static String extensionFor(String name, String type) {
+        if (type.equals("audio/webm")) return ".weba";
         int dot = name.lastIndexOf('.');
         if (dot >= 0 && dot < name.length() - 1) {
             String extension = name.substring(dot).toLowerCase(Locale.ROOT);

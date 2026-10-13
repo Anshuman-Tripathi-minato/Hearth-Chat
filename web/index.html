@@ -109,7 +109,7 @@
     .sidebar-note strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 12px; }
 
     /* Chat */
-    .chat-panel { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--paper); }
+    .chat-panel { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--paper); }
     .chat-head { height: 70px; flex: 0 0 70px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--line-soft); }
     .chat-title { margin: 0; font-size: 16px; letter-spacing: -.035em; }
     .chat-subtitle { margin-top: 3px; color: var(--muted); font-size: 11px; }
@@ -220,7 +220,8 @@
     .room-url { display: block; margin-top: 11px; padding: 10px; overflow-wrap: anywhere; border-radius: 10px; color: var(--mint-dark); background: var(--mint-soft); font-size: 11.5px; font-weight: 650; }
     .copy-button { width: 100%; margin-top: 9px; padding: 9px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink-soft); background: var(--paper); font-size: 11px; font-weight: 700; cursor: pointer; }
     .copy-button:hover { background: var(--hover); }
-    .recent-list { display: grid; gap: 4px; }
+    .recent-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .file-row { min-width: 0; }
     .recent-empty { color: var(--faint); font-size: 11px; }
     .file-row { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 10px; color: inherit; text-decoration: none; cursor: pointer; }
     .file-row:hover { background: var(--hover); }
@@ -267,6 +268,107 @@
     .message-menu button { width: 100%; display: flex; align-items: center; gap: 9px; padding: 10px 11px; border: 0; border-radius: 8px; color: var(--ink); background: transparent; text-align: left; font-size: 12px; cursor: pointer; }
     .message-menu button:hover { background: var(--hover); }
     .message-menu svg { width: 16px; height: 16px; color: var(--mint-strong); }
+    /* Presence */
+    .peer-list { display: grid; gap: 4px; padding: 0 4px; }
+    .peer { display: flex; align-items: center; gap: 9px; padding: 6px; border-radius: 11px; font-size: 12px; }
+    .peer:hover { background: var(--hover); }
+    .peer-avatar { position: relative; width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: 10px; font-weight: 800; }
+    .peer-avatar::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border: 2px solid var(--side); border-radius: 50%; background: #5fbe91; }
+    .peer-avatar.busy::after { background: #e5484d; }
+    .peer-text { min-width: 0; flex: 1; }
+    .peer-name { overflow: hidden; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .peer-state { margin-top: 2px; color: var(--faint); font-size: 10px; }
+    .peer-call { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 9px; color: var(--mint-dark); background: var(--mint-soft); cursor: pointer; }
+    .peer-call svg { width: 15px; height: 15px; }
+    .peer-empty { padding: 0 10px; color: var(--faint); font-size: 11px; line-height: 1.5; }
+    .call-picker { position: absolute; z-index: 12; top: 60px; right: 16px; width: 290px; padding: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); box-shadow: var(--shadow); }
+    .call-picker h3 { margin: 4px 6px 8px; color: var(--faint); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+    .secure-banner { display: flex; align-items: center; gap: 10px; padding: 9px 24px; border-bottom: 1px solid var(--line-soft); background: #fff6e8; color: #7a5520; font-size: 12px; }
+    @media (prefers-color-scheme: dark) { .secure-banner { background: #2a2214; color: #e8c28a; } }
+    .secure-banner a { margin-left: auto; padding: 6px 10px; border-radius: 9px; color: #fff; background: #c98a2e; font-weight: 700; text-decoration: none; white-space: nowrap; }
+    .typing-line { height: 0; overflow: hidden; color: var(--muted); font-size: 11px; transition: height .15s; }
+    .typing-line.visible { height: 20px; }
+    .typing-dots { display: inline-flex; gap: 3px; margin-right: 6px; vertical-align: middle; }
+    .typing-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--mint-strong); animation: blink 1.2s infinite; }
+    .typing-dots i:nth-child(2) { animation-delay: .2s; } .typing-dots i:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+    .jump-button { position: absolute; z-index: 5; right: 26px; bottom: 120px; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--mint-dark); background: var(--card); box-shadow: var(--shadow); cursor: pointer; }
+    .jump-button svg { width: 18px; height: 18px; }
+    .jump-badge { position: absolute; top: -5px; right: -5px; min-width: 18px; padding: 1px 5px; border-radius: 9px; color: #fff; background: var(--mint-strong); font-size: 10px; font-weight: 800; }
+
+    /* Replies, reactions, deleted, call log */
+    .reply-bar { display: none; align-items: center; gap: 10px; margin: 0 0 8px; padding: 8px 10px 8px 12px; border-left: 3px solid var(--mint-strong); border-radius: 10px; background: var(--side); font-size: 12px; }
+    .reply-bar.visible { display: flex; }
+    .reply-bar-text { min-width: 0; flex: 1; }
+    .reply-bar-text b { display: block; color: var(--mint-strong); font-size: 11px; }
+    .reply-bar-text span { display: block; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+    .quote { max-width: 100%; padding: 6px 10px; border-left: 3px solid var(--mint-strong); border-radius: 8px; background: var(--side); font-size: 11.5px; cursor: pointer; }
+    .quote b { display: block; color: var(--mint-strong); font-size: 10.5px; }
+    .quote span { display: block; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+    .reactions { display: flex; flex-wrap: wrap; gap: 4px; }
+    .reaction { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 12px; cursor: pointer; }
+    .reaction.mine { border-color: var(--mint-strong); background: var(--mint-soft); }
+    .reaction b { color: var(--muted); font-size: 10.5px; }
+    .bubble.deleted { color: var(--faint); font-style: italic; }
+    .call-log { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 15px; background: var(--card); font-size: 12.5px; }
+    .call-log-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: var(--mint-dark); background: var(--mint-soft); }
+    .call-log-icon.missed { color: #fff; background: #e5484d; }
+    .call-log-icon svg { width: 16px; height: 16px; }
+    .call-log small { display: block; margin-top: 2px; color: var(--muted); font-size: 10.5px; }
+    .call-log button { margin-left: 6px; padding: 6px 10px; border: 0; border-radius: 9px; color: var(--mint-dark); background: var(--mint-soft); font-size: 11px; font-weight: 700; cursor: pointer; }
+    .menu-emojis { display: flex; gap: 2px; padding: 4px 4px 6px; border-bottom: 1px solid var(--line-soft); margin-bottom: 4px; }
+    .message-menu .menu-emojis button { width: 34px; height: 34px; justify-content: center; padding: 0; font-size: 19px; border-radius: 50%; }
+    .message-menu button.danger, .message-menu button.danger svg { color: #e5484d; }
+
+    /* Voice messages */
+    .voice { width: 290px; max-width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 12px 9px 9px; border: 1px solid var(--bubble-line); border-radius: 18px; background: var(--bubble); }
+    .mine .voice { border-color: var(--bubble-mine-line); background: var(--bubble-mine); }
+    .voice-play { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff; background: var(--mint-strong); cursor: pointer; }
+    .voice-play svg { width: 16px; height: 16px; }
+    .voice-wave { flex: 1; height: 30px; display: flex; align-items: center; gap: 2px; cursor: pointer; }
+    .voice-wave i { flex: 1; min-width: 2px; border-radius: 2px; background: var(--faint); opacity: .55; }
+    .voice-wave i.on { background: var(--mint-strong); opacity: 1; }
+    .voice-side { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+    .voice-time { color: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+    .voice-speed { padding: 1px 6px; border: 0; border-radius: 7px; color: var(--ink-soft); background: var(--line); font-size: 10px; font-weight: 800; cursor: pointer; }
+    .mic-button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 12px; color: #12372a; background: var(--mint); cursor: pointer; }
+    .mic-button svg { width: 18px; height: 18px; }
+    .recorder { position: absolute; inset: 0; z-index: 3; display: none; align-items: center; gap: 12px; padding: 0 9px 0 14px; border-radius: 18px; background: var(--paper); }
+    .recorder.visible { display: flex; }
+    .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e5484d; animation: blink 1s infinite; }
+    .rec-time { min-width: 44px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .rec-level { flex: 1; height: 30px; display: flex; align-items: center; gap: 2px; overflow: hidden; }
+    .rec-level i { width: 3px; flex: 0 0 3px; border-radius: 2px; background: var(--mint-strong); }
+    .rec-cancel { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 12px; color: #e5484d; background: transparent; cursor: pointer; }
+    .rec-cancel svg, .rec-send svg { width: 18px; height: 18px; }
+    .rec-send { width: 40px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 12px; color: #12372a; background: var(--mint); cursor: pointer; }
+
+    /* Calls */
+    .call-screen { position: fixed; z-index: 50; inset: 0; display: none; flex-direction: column; color: #eef6f1; background: radial-gradient(circle at 50% 30%, #23463a, #0b1512 70%); }
+    .call-screen.visible { display: flex; }
+    .call-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
+    .remote-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #050b09; }
+    .local-video { position: absolute; z-index: 2; right: 16px; top: 16px; width: clamp(96px, 22vw, 220px); aspect-ratio: 3 / 4; object-fit: cover; border: 2px solid rgba(255,255,255,.25); border-radius: 16px; background: #10201b; box-shadow: 0 10px 30px rgba(0,0,0,.4); transform: scaleX(-1); }
+    .local-video.no-mirror { transform: none; }
+    .call-identity { position: relative; z-index: 1; text-align: center; }
+    .call-avatar { width: 116px; height: 116px; margin: 0 auto 18px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: 38px; font-weight: 800; box-shadow: 0 0 0 10px rgba(255,255,255,.05), 0 0 0 22px rgba(255,255,255,.03); }
+    .call-avatar.pulse { animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(95,190,145,.45); } 100% { box-shadow: 0 0 0 34px rgba(95,190,145,0); } }
+    .call-name { font-size: 24px; font-weight: 750; letter-spacing: -.03em; }
+    .call-status { margin-top: 6px; color: rgba(238,246,241,.7); font-size: 13px; font-variant-numeric: tabular-nums; }
+    .call-top { position: absolute; z-index: 3; left: 16px; top: 16px; padding: 7px 12px; border-radius: 999px; background: rgba(0,0,0,.35); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .call-flags { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
+    .call-flags span { padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,.1); font-size: 11px; }
+    .call-controls { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; padding: 18px 16px max(26px, env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,.45)); }
+    .call-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; color: inherit; background: none; font-size: 10.5px; cursor: pointer; }
+    .call-btn span { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.14); transition: background .15s; }
+    .call-btn:hover span { background: rgba(255,255,255,.22); }
+    .call-btn.off span { color: #10201b; background: #eef6f1; }
+    .call-btn svg { width: 23px; height: 23px; }
+    .call-btn.end span { background: #e5484d; }
+    .call-btn.accept span { background: #2fb36d; }
+    .call-btn.end svg { transform: rotate(135deg); }
+    .incoming-actions { display: flex; justify-content: center; gap: 44px; padding: 26px 16px max(40px, env(safe-area-inset-bottom)); }
     .hidden { display: none !important; }
     @media (max-width: 1100px) {
       .layout { grid-template-columns: 210px minmax(340px, 1fr); }
@@ -295,6 +397,11 @@
       .send-button { width: 40px; justify-content: center; padding: 0; font-size: 0; }
       .send-button svg { width: 17px; height: 17px; }
       .media-grid { grid-template-columns: repeat(3, 1fr); }
+      .secure-banner { padding: 8px 14px; font-size: 11px; }
+      .jump-button { right: 14px; bottom: 100px; }
+      .call-picker { right: 8px; left: 8px; width: auto; }
+      .call-controls { gap: 10px; }
+      .call-btn span { width: 52px; height: 52px; }
     }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
   </style>
@@ -323,6 +430,10 @@
           </div>
         </section>
         <section>
+          <p class="nav-label">Online now</p>
+          <div id="peerList" class="peer-list"></div>
+        </section>
+        <section>
           <p class="nav-label">This room</p>
           <div class="stat-grid">
             <div class="stat"><b id="statMessages">0</b><span>Messages</span></div>
@@ -335,20 +446,32 @@
         <div class="chat-head">
           <div><h1 class="chat-title">Home room</h1><div class="chat-subtitle">Chat and share anything — photos, PDFs, documents, APKs, ZIPs…</div></div>
           <div class="head-actions">
+            <button id="callToggle" class="pill-button" type="button" aria-label="Start a call"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span class="pill-label">Call</span></button>
             <button id="searchToggle" class="pill-button" type="button" aria-label="Search messages"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="pill-label">Search</span></button>
             <button id="filesToggle" class="pill-button" type="button" aria-label="Shared files"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span class="pill-label">Files</span><span id="filesCount" class="pill-count">0</span></button>
             <button id="quickCopy" class="pill-button quick-copy" type="button" aria-label="Copy laptop link"><svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.6"/></svg></button>
           </div>
         </div>
+        <div id="callPicker" class="call-picker hidden"><h3>Call someone online</h3><div id="callPickerList" class="peer-list"></div></div>
+        <div id="secureBanner" class="secure-banner hidden"><span id="secureText">Voice messages and calls need the secure room address.</span><a id="secureLink" href="#">Open secure room</a></div>
         <div id="searchBar" class="search-bar">
           <input id="searchInput" type="search" placeholder="Search messages and file names…" aria-label="Search messages">
           <span id="searchCount" class="search-count"></span>
           <button id="searchClose" class="icon-button" type="button" aria-label="Close search"><svg viewBox="0 0 24 24" fill="none"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
         </div>
         <section id="messages" class="messages" aria-live="polite" aria-label="Chat messages"></section>
+        <button id="jumpButton" class="jump-button hidden" type="button" aria-label="Jump to latest"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14m0 0-6-6m6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="jumpBadge" class="jump-badge hidden"></span></button>
         <div class="composer-wrap">
+          <div id="typingLine" class="typing-line"></div>
+          <div id="replyBar" class="reply-bar"><div class="reply-bar-text"><b id="replyName"></b><span id="replySnippet"></span></div><button id="replyCancel" class="tray-remove" style="position:static" type="button" aria-label="Cancel reply">×</button></div>
           <div id="tray" class="tray" aria-label="Files to send"></div>
           <form id="composer" class="composer">
+            <div id="recorder" class="recorder" aria-live="polite">
+              <button id="recCancel" class="rec-cancel" type="button" aria-label="Discard recording"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <span class="rec-dot"></span><span id="recTime" class="rec-time">0:00</span>
+              <div id="recLevel" class="rec-level"></div>
+              <button id="recSend" class="rec-send" type="button" aria-label="Send voice message"><svg viewBox="0 0 24 24" fill="none"><path d="m4 4 17 8-17 8 2-7 8-1-8-1-2-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+            </div>
             <textarea id="messageInput" rows="1" placeholder="Write a message to your home…" aria-label="Write a message"></textarea>
             <div class="composer-bottom">
               <div class="composer-tools">
@@ -364,7 +487,8 @@
                 <input id="anyInput" type="file" multiple class="hidden">
                 <span class="composer-hint">Any file up to 1 GB · Drop or paste to attach · Enter to send</span>
               </div>
-              <button id="sendButton" class="send-button" type="submit"><svg viewBox="0 0 24 24" fill="none"><path d="m4 4 17 8-17 8 2-7 8-1-8-1-2-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Send</button>
+              <button id="micButton" class="mic-button" type="button" title="Record a voice message" aria-label="Record a voice message"><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <button id="sendButton" class="send-button hidden" type="submit"><svg viewBox="0 0 24 24" fill="none"><path d="m4 4 17 8-17 8 2-7 8-1-8-1-2-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Send</button>
             </div>
           </form>
         </div>
@@ -409,6 +533,32 @@
     <input id="nameInput" maxlength="48" autocomplete="nickname">
     <div class="modal-actions"><button id="nameCancel" class="pill-button" type="button">Cancel</button><button class="send-button" type="submit" style="font-size:12.5px;width:auto;padding:0 16px">Save</button></div>
   </form>
+  <div id="callScreen" class="call-screen" role="dialog" aria-label="Call">
+    <div class="call-stage">
+      <video id="remoteVideo" class="remote-video hidden" autoplay playsinline></video>
+      <video id="localVideo" class="local-video hidden" autoplay playsinline muted></video>
+      <span id="callTop" class="call-top hidden"></span>
+      <div id="callIdentity" class="call-identity">
+        <div id="callAvatar" class="call-avatar">?</div>
+        <div id="callName" class="call-name"></div>
+        <div id="callStatus" class="call-status"></div>
+        <div id="callFlags" class="call-flags"></div>
+      </div>
+    </div>
+    <div id="incomingActions" class="incoming-actions hidden">
+      <button id="declineCall" class="call-btn end" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>Decline</button>
+      <button id="acceptVoice" class="call-btn accept" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>Voice</button>
+      <button id="acceptVideo" class="call-btn accept" type="button"><span><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="13" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 10.5 5-3v9l-5-3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>Video</button>
+    </div>
+    <div id="callControls" class="call-controls">
+      <button id="muteButton" class="call-btn" type="button"><span><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>Mute</button>
+      <button id="cameraButton" class="call-btn" type="button"><span><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="13" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 10.5 5-3v9l-5-3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>Camera</button>
+      <button id="flipButton" class="call-btn hidden" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M4 8h11a5 5 0 0 1 0 10H9m-5-10 3-3M4 8l3 3m13 8H9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Flip</button>
+      <button id="speakerButton" class="call-btn hidden" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M15.5 9a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>Speaker</button>
+      <button id="screenButton" class="call-btn hidden" type="button"><span><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 20h8M12 16v4M12 13V7m0 0-2.5 2.5M12 7l2.5 2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Share</button>
+      <button id="hangupButton" class="call-btn end" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>End</button>
+    </div>
+  </div>
   <div id="messageMenu" class="message-menu hidden" role="menu" aria-label="Message actions"></div>
   <div id="toast" class="toast" role="status"></div>
   <script>
@@ -440,6 +590,13 @@
         search: '',
         drawerTab: 'files',
         lightboxMessage: null,
+        peers: [],
+        signalCursor: 0,
+        call: null,
+        replyTo: null,
+        typingAt: 0,
+        unseen: 0,
+        loaded: false,
       };
       localStorage.setItem(DEVICE_KEY, state.device);
       if (!localStorage.getItem(NAME_KEY)) localStorage.setItem(NAME_KEY, state.name);
@@ -449,6 +606,7 @@
       const input = $('messageInput');
       const PAGE_BASE = location.origin && location.origin !== 'null' ? location.origin : '';
       const messageMenu = $('messageMenu');
+      const TITLE = document.title;
 
       const ICONS = {
         copy: '<svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.6"/></svg>',
@@ -465,7 +623,13 @@
         image: '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="m6 17 4-4 3 3 2-2 3 3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
         code: '<svg viewBox="0 0 24 24" fill="none"><path d="m9 8-4 4 4 4m6-8 4 4-4 4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
         file: '<svg viewBox="0 0 24 24" fill="none"><path d="M7 4h7l4 4v12H7V4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+        phone: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+        video: '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="13" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 10.5 5-3v9l-5-3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+        reply: '<svg viewBox="0 0 24 24" fill="none"><path d="M10 7 5 12l5 5M5.5 12H14a5 5 0 0 1 5 5v1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        trash: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1"/><rect x="13.5" y="5" width="4" height="14" rx="1"/></svg>',
       };
+      const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
       const FILE_TYPES = [
         { exts: ['pdf'], color: '--pdf', label: 'PDF document', icon: 'lines' },
         { exts: ['doc', 'docx', 'odt', 'rtf'], color: '--doc', label: 'Word document', icon: 'lines' },
@@ -668,6 +832,10 @@
           state.messages.push(merged);
         }
         state.byId.set(id, merged);
+        if (!previous && state.loaded && document.hidden && merged.sender !== state.device) {
+          state.hiddenUnread = (state.hiddenUnread || 0) + 1;
+          document.title = `(${state.hiddenUnread}) ${TITLE}`;
+        }
         if (Number(merged.seq) > state.cursor) {
           state.cursor = Number(merged.seq);
           localStorage.setItem(CURSOR_KEY, String(state.cursor));
@@ -714,23 +882,33 @@
             prior = null;
           }
           const grouped = !!prior && prior.sender === message.sender && Number(message.createdAt) - Number(prior.createdAt) < GROUP_WINDOW_MS;
-          const key = `${message.id}|${message.seq || 0}|${grouped ? 1 : 0}|${message.mediaUrl || ''}|${safeText(message.text).length}|${state.search}`;
+          const key = `${message.id}|${message.seq || 0}|${grouped ? 1 : 0}|${message.mediaUrl || ''}|${safeText(message.text).length}|${message.deleted ? 1 : 0}|${state.search}`;
           items.push({ key, build: () => messageRow(message, grouped) });
           prior = message;
         }
         const keys = items.map(item => item.key);
         const old = state.renderedKeys;
-        const isAppend = old.length && old.length <= keys.length && old.every((key, index) => key === keys[index])
-          && messagesEl.childElementCount === old.length;
-        if (isAppend) {
+        const oldSet = new Set(old);
+        // Patch in place when rows only changed or were appended; a full rebuild would restart playing media.
+        const canPatch = old.length && old.length <= keys.length && messagesEl.childElementCount === old.length
+          && keys.every((key, index) => key === old[index] || !oldSet.has(key));
+        if (canPatch) {
+          const children = Array.from(messagesEl.children);
+          for (let i = 0; i < old.length; i++) if (keys[i] !== old[i]) children[i].replaceWith(cachedNode(items[i]));
           for (let i = old.length; i < items.length; i++) messagesEl.append(cachedNode(items[i]));
         } else {
           messagesEl.replaceChildren(...items.map(cachedNode));
         }
         const live = new Set(keys);
         for (const key of state.rows.keys()) if (!live.has(key)) state.rows.delete(key);
+        const appended = keys.length - old.length;
         state.renderedKeys = keys;
         if (scrollAtBottom) scrollToBottom();
+        else if (state.loaded && appended > 0 && !state.search) {
+          state.unseen += appended;
+          $('jumpBadge').textContent = String(state.unseen);
+          $('jumpBadge').classList.remove('hidden');
+        }
       }
       function cachedNode(item) {
         let node = state.rows.get(item.key);
@@ -794,15 +972,188 @@
           }
           content.append(meta);
         }
-        if (message.mediaUrl) content.append(attachmentView(message));
-        if (message.text) {
+        if (message.deleted) {
           const bubble = document.createElement('div');
-          bubble.className = 'bubble';
-          appendLinkified(bubble, safeText(message.text));
+          bubble.className = 'bubble deleted';
+          bubble.textContent = mine ? 'You deleted this message' : 'This message was deleted';
           content.append(bubble);
+          row.append(avatar, content);
+          return row;
         }
+        if (message.replyTo) content.append(quoteView(message.replyTo));
+        if (message.kind === 'call') {
+          content.append(callLogView(message, mine));
+        } else {
+          if (message.mediaUrl) content.append(message.voice ? voiceView(message) : attachmentView(message));
+          if (message.text) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            appendLinkified(bubble, safeText(message.text));
+            content.append(bubble);
+          }
+        }
+        const reactions = reactionsView(message);
+        if (reactions) content.append(reactions);
+        row.addEventListener('dblclick', event => {
+          if (event.target.closest('a, button, audio, video, img, .voice')) return;
+          react(message, '❤️');
+        });
         row.append(avatar, content);
         return row;
+      }
+      function snippetOf(message) {
+        if (message.kind === 'call') return 'Call';
+        if (message.voice) return `🎤 Voice message (${clock(message.duration)})`;
+        if (message.text) return safeText(message.text).replace(/\s+/g, ' ').slice(0, 140);
+        if (message.mediaUrl) return `📎 ${safeText(message.mediaName) || 'File'}`;
+        return '';
+      }
+      function quoteView(reply) {
+        const quote = document.createElement('div');
+        quote.className = 'quote';
+        const name = document.createElement('b');
+        name.textContent = safeText(reply.name) || 'Someone';
+        const text = document.createElement('span');
+        text.textContent = safeText(reply.snippet);
+        quote.append(name, text);
+        quote.addEventListener('click', () => {
+          const target = state.byId.get(reply.id);
+          if (target) jumpTo(target);
+        });
+        return quote;
+      }
+      function reactionsView(message) {
+        const entries = Object.entries(message.reactions || {}).filter(([, who]) => Array.isArray(who) && who.length);
+        if (!entries.length) return null;
+        const wrap = document.createElement('div');
+        wrap.className = 'reactions';
+        for (const [emoji, who] of entries) {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = `reaction${who.includes(state.device) ? ' mine' : ''}`;
+          chip.textContent = emoji;
+          const count = document.createElement('b');
+          count.textContent = String(who.length);
+          chip.append(count);
+          chip.title = who.map(device => peerName(device)).join(', ');
+          chip.addEventListener('click', () => react(message, emoji));
+          wrap.append(chip);
+        }
+        return wrap;
+      }
+      function peerName(device) {
+        if (device === state.device) return 'You';
+        const peer = state.peers.find(item => item.device === device);
+        if (peer) return peer.name;
+        const sent = state.messages.find(item => item.sender === device);
+        return sent ? safeText(sent.senderName) : 'Someone';
+      }
+      function callLogView(message, mine) {
+        const call = message.call || {};
+        const box = document.createElement('div');
+        box.className = 'call-log';
+        const answered = call.status === 'completed';
+        const icon = document.createElement('span');
+        icon.className = `call-log-icon${!answered && !mine ? ' missed' : ''}`;
+        icon.innerHTML = call.video ? ICONS.video : ICONS.phone;
+        const kind = call.video ? 'video call' : 'voice call';
+        const text = document.createElement('div');
+        const title = document.createElement('div');
+        const statusText = {
+          completed: mine ? `Outgoing ${kind}` : `Incoming ${kind}`,
+          declined: mine ? `${capital(kind)} declined` : `You declined a ${kind}`,
+          busy: `${capital(kind)} · line busy`,
+          failed: `${capital(kind)} couldn’t connect`,
+        }[call.status] || (mine ? `${capital(kind)} · no answer` : `Missed ${kind}`);
+        title.textContent = statusText;
+        const sub = document.createElement('small');
+        sub.textContent = answered ? clock(call.duration) : timeLabel(message.createdAt);
+        text.append(title, sub);
+        box.append(icon, text);
+        const other = mine ? null : message.sender;
+        if (other) {
+          const back = document.createElement('button');
+          back.type = 'button';
+          back.textContent = 'Call back';
+          back.addEventListener('click', () => startCall(other, safeText(message.senderName), !!call.video));
+          box.append(back);
+        }
+        return box;
+      }
+      function capital(text) { return text.charAt(0).toUpperCase() + text.slice(1); }
+      function clock(seconds) {
+        const total = Math.max(0, Math.round(Number(seconds) || 0));
+        const hours = Math.floor(total / 3600);
+        const minutes = Math.floor((total % 3600) / 60);
+        const secs = String(total % 60).padStart(2, '0');
+        return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${secs}` : `${minutes}:${secs}`;
+      }
+      function voiceView(message) {
+        const box = document.createElement('div');
+        box.className = 'voice';
+        const play = document.createElement('button');
+        play.type = 'button';
+        play.className = 'voice-play';
+        play.innerHTML = ICONS.play;
+        play.setAttribute('aria-label', 'Play voice message');
+        const wave = document.createElement('div');
+        wave.className = 'voice-wave';
+        let seed = 0;
+        for (const ch of String(message.id)) seed = (seed * 33 + ch.charCodeAt(0)) >>> 0;
+        const bars = [];
+        for (let i = 0; i < 34; i++) {
+          seed = (seed * 1103515245 + 12345) >>> 0;
+          const bar = document.createElement('i');
+          bar.style.height = `${22 + (seed % 78)}%`;
+          bars.push(bar);
+          wave.append(bar);
+        }
+        const side = document.createElement('div');
+        side.className = 'voice-side';
+        const time = document.createElement('span');
+        time.className = 'voice-time';
+        const total = Number(message.duration) || 0;
+        time.textContent = clock(total);
+        const speed = document.createElement('button');
+        speed.type = 'button';
+        speed.className = 'voice-speed';
+        speed.textContent = '1×';
+        side.append(time, speed);
+        const audio = document.createElement('audio');
+        audio.preload = 'none';
+        if (PAGE_BASE) audio.src = PAGE_BASE + message.mediaUrl;
+        const length = () => (Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : total) || 1;
+        const paint = () => {
+          const ratio = Math.min(1, audio.currentTime / length());
+          const lit = Math.round(ratio * bars.length);
+          bars.forEach((bar, index) => bar.classList.toggle('on', index < lit));
+          time.textContent = audio.paused && !audio.currentTime ? clock(total) : clock(audio.currentTime);
+        };
+        play.addEventListener('click', () => {
+          if (audio.paused) {
+            document.querySelectorAll('audio').forEach(other => { if (other !== audio) other.pause(); });
+            audio.play().catch(() => showToast('Reconnect to the room to play this message.'));
+          } else audio.pause();
+        });
+        audio.addEventListener('play', () => { play.innerHTML = ICONS.pause; });
+        audio.addEventListener('pause', () => { play.innerHTML = ICONS.play; });
+        audio.addEventListener('ended', () => { audio.currentTime = 0; paint(); });
+        audio.addEventListener('timeupdate', paint);
+        wave.addEventListener('click', event => {
+          const box = wave.getBoundingClientRect();
+          const ratio = (event.clientX - box.left) / box.width;
+          if (audio.readyState === 0) { audio.play().then(() => { audio.currentTime = ratio * length(); }).catch(() => {}); return; }
+          audio.currentTime = ratio * length();
+          paint();
+        });
+        const speeds = [1, 1.5, 2];
+        speed.addEventListener('click', () => {
+          const next = speeds[(speeds.indexOf(audio.playbackRate) + 1) % speeds.length];
+          audio.playbackRate = next;
+          speed.textContent = `${next}×`;
+        });
+        box.append(play, wave, side, audio);
+        return box;
       }
       function appendLinkified(target, text) {
         const pattern = /\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/g;
@@ -866,7 +1217,7 @@
         if (!IN_ANDROID_APP && /^(application\/pdf|text\/plain)$/.test(safeText(message.mediaType))) {
           actions.append(actionLink(ICONS.open, 'Open', fileUrl(message, false), false));
         }
-        actions.append(actionLink(ICONS.download, `Download ${name}`, fileUrl(message, true), name));
+        actions.append(actionLink(ICONS.download, `Download ${name}`, fileUrl(message, true), name, message.mediaType));
         card.append(fileBadge(name, message.mediaType), info, actions);
         if (message.kind === 'audio' && PAGE_BASE) {
           card.classList.add('has-audio');
@@ -878,7 +1229,12 @@
         }
         return card;
       }
-      function actionLink(icon, label, href, downloadName) {
+      /** In the Android app, downloads go straight to the phone's download manager through the app bridge. */
+      function nativeDownload(url, name, mime) {
+        if (!url || !window.HearthAndroid || typeof HearthAndroid.download !== 'function') return false;
+        try { HearthAndroid.download(url, name || 'hearth-file', mime || ''); return true; } catch (_) { return false; }
+      }
+      function actionLink(icon, label, href, downloadName, mime) {
         const link = document.createElement('a');
         link.className = 'file-action';
         link.innerHTML = icon;
@@ -889,12 +1245,13 @@
         else { link.target = '_blank'; link.rel = 'noopener'; }
         link.addEventListener('click', event => {
           if (!href || !state.online) { event.preventDefault(); showToast('Reconnect to the room to get this file.'); }
-          else if (downloadName) showToast(IN_ANDROID_APP ? 'Saving to Downloads…' : 'Download started.');
+          else if (downloadName && nativeDownload(href, downloadName, mime)) event.preventDefault();
+          else if (downloadName) showToast('Download started.');
         });
         return link;
       }
       function sharedFiles(visual) {
-        return state.messages.filter(message => message.mediaUrl && (visual ? isVisualMedia(message) : !isVisualMedia(message))).reverse();
+        return state.messages.filter(message => message.mediaUrl && !message.voice && !message.deleted && (visual ? isVisualMedia(message) : !isVisualMedia(message))).reverse();
       }
       function fileRow(message) {
         const row = document.createElement('a');
@@ -904,6 +1261,7 @@
         row.download = name;
         row.addEventListener('click', event => {
           if (!state.online) { event.preventDefault(); showToast('Reconnect to the room to get this file.'); }
+          else if (nativeDownload(row.href, name, message.mediaType)) event.preventDefault();
         });
         const info = document.createElement('div');
         info.className = 'file-info';
@@ -1027,22 +1385,41 @@
       function openMessageMenu(event, message) {
         if (event.preventDefault) event.preventDefault();
         messageMenu.replaceChildren();
-        if (message.text) addMenuItem('Copy text', ICONS.copy, () => copyText(message.text, 'Message copied.'));
+        if (message.deleted) return;
+        if (Number(message.seq)) {
+          const emojis = document.createElement('div');
+          emojis.className = 'menu-emojis';
+          REACTIONS.forEach(emoji => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = emoji;
+            button.setAttribute('aria-label', `React ${emoji}`);
+            button.addEventListener('click', () => { closeMessageMenu(); react(message, emoji); });
+            emojis.append(button);
+          });
+          messageMenu.append(emojis);
+          addMenuItem('Reply', ICONS.reply, () => startReply(message));
+        }
+        if (message.text && message.kind !== 'call') addMenuItem('Copy text', ICONS.copy, () => copyText(message.text, 'Message copied.'));
         if (message.mediaUrl) {
           const label = message.kind === 'video' ? 'Download video' : message.kind === 'image' ? 'Download image' : 'Download file';
           addMenuItem(label, ICONS.download, () => downloadFile(message));
           if (!IN_ANDROID_APP && state.online) addMenuItem('Open in new tab', ICONS.open, () => window.open(fileUrl(message, false), '_blank', 'noopener'));
           addMenuItem('Copy file link', ICONS.copy, () => copyText(fileUrl(message, true), 'File link copied.'));
         }
-        if (!messageMenu.childElementCount) return;
+        if (message.sender === state.device && Number(message.seq)) {
+          addMenuItem('Delete for everyone', ICONS.trash, () => deleteMessage(message), true);
+        }
+        if (!messageMenu.querySelector('[role="menuitem"]') && !messageMenu.childElementCount) return;
         messageMenu.classList.remove('hidden');
         const bounds = messageMenu.getBoundingClientRect();
         messageMenu.style.left = `${Math.max(8, Math.min(event.clientX, innerWidth - bounds.width - 8))}px`;
         messageMenu.style.top = `${Math.max(8, Math.min(event.clientY, innerHeight - bounds.height - 8))}px`;
       }
-      function addMenuItem(label, icon, action) {
+      function addMenuItem(label, icon, action, danger) {
         const button = document.createElement('button');
         button.type = 'button';
+        if (danger) button.className = 'danger';
         button.setAttribute('role', 'menuitem');
         button.innerHTML = icon;
         const text = document.createElement('span');
@@ -1075,6 +1452,8 @@
           ? fileUrl(message, true)
           : state.mediaUrls.get(message.id);
         if (!source) return showToast('Reconnect to the room before downloading this file.');
+        if (IN_ANDROID_APP && !source.startsWith('http')) return showToast('Reconnect to the room before downloading this file.');
+        if (nativeDownload(source, safeText(message.mediaName), message.mediaType)) return;
         const link = document.createElement('a');
         link.href = source;
         link.download = safeText(message.mediaName) || 'hearth-file';
@@ -1082,7 +1461,7 @@
         document.body.append(link);
         link.click();
         link.remove();
-        showToast(IN_ANDROID_APP ? 'Saving to Downloads…' : 'Download started.');
+        showToast('Download started.');
       }
 
       /* ---------- Network ---------- */
@@ -1099,7 +1478,9 @@
         }
         try {
           state.info = await getJson(`${PAGE_BASE}/api/info`);
-          $('roomUrl').textContent = state.info.url || 'Connect this phone to Wi‑Fi';
+          const preferred = window.isSecureContext && state.info.secureUrl ? state.info.secureUrl : state.info.url;
+          $('roomUrl').textContent = preferred || 'Connect this phone to Wi‑Fi';
+          updateSecureBanner();
         } catch (_) {
           $('roomUrl').textContent = location.origin;
         }
@@ -1118,7 +1499,7 @@
             more = !!page.more;
           }
           setOnline(true);
-          if (state.info && state.info.url) $('roomUrl').textContent = state.info.url;
+          if (state.info && state.info.url) $('roomUrl').textContent = (window.isSecureContext && state.info.secureUrl) || state.info.url;
           await sendQueuedMessages();
         } catch (_) {
           setOnline(false);
@@ -1149,8 +1530,10 @@
       }
       async function sendText(text) {
         const message = { id: makeId(), sender: state.device, senderName: state.name, text, createdAt: Date.now(), kind: 'text', seq: 0 };
+        if (state.replyTo) message.replyTo = state.replyTo;
         addMessage(message);
         clearInput();
+        cancelReply();
         requestAnimationFrame(scrollToBottom);
         if (state.online) await sendQueuedMessages();
         else showToast('Saved here. It will send when this device reconnects.');
@@ -1158,13 +1541,15 @@
       function clearInput() {
         input.value = '';
         input.style.height = 'auto';
+        state.typingAt = 0;
+        updateComposerButtons();
       }
-      function uploadFile(item, caption) {
+      function uploadFile(item, caption, extra) {
         return new Promise((resolve, reject) => {
           const file = item.file;
           const params = new URLSearchParams({
             sender: state.device, senderName: state.name, caption,
-            name: file.name || 'file', type: file.type,
+            name: file.name || 'file', type: file.type, ...(extra || {}),
           });
           const request = new XMLHttpRequest();
           request.open('POST', `${PAGE_BASE}/api/media?${params}`);
@@ -1197,7 +1582,8 @@
           if (item.done) continue;
           item.el.classList.remove('failed');
           try {
-            const saved = await uploadFile(item, index === 0 ? caption : '');
+            const saved = await uploadFile(item, index === 0 ? caption : '', index === 0 ? replyParams() : null);
+            if (index === 0) cancelReply();
             item.done = true;
             item.el.classList.add('done');
             addMessage(saved);
@@ -1212,6 +1598,7 @@
         state.pending = state.pending.filter(item => !item.done);
         if (!failed) clearInput();
         renderTray();
+        updateComposerButtons();
         state.uploading = false;
         $('sendButton').disabled = false;
         requestAnimationFrame(scrollToBottom);
@@ -1276,7 +1663,611 @@
           return el;
         }));
         input.placeholder = state.pending.length ? 'Add a caption (optional)…' : 'Write a message to your home…';
+        updateComposerButtons();
       }
+      function updateComposerButtons() {
+        const hasContent = !!input.value.trim() || state.pending.length > 0;
+        $('sendButton').classList.toggle('hidden', !hasContent);
+        $('micButton').classList.toggle('hidden', hasContent);
+      }
+
+      /* ---------- Replies, reactions, delete ---------- */
+      function startReply(message) {
+        state.replyTo = { id: message.id, name: message.sender === state.device ? 'You' : safeText(message.senderName) || 'Someone', snippet: snippetOf(message) };
+        $('replyName').textContent = `Replying to ${state.replyTo.name}`;
+        $('replySnippet').textContent = state.replyTo.snippet;
+        $('replyBar').classList.add('visible');
+        input.focus();
+      }
+      function cancelReply() {
+        state.replyTo = null;
+        $('replyBar').classList.remove('visible');
+      }
+      function replyParams() {
+        if (!state.replyTo) return null;
+        return { replyId: state.replyTo.id, replyName: state.replyTo.name, replySnippet: state.replyTo.snippet };
+      }
+      async function react(message, emoji) {
+        if (!state.online || !Number(message.seq)) return showToast('Reconnect to the room to react.');
+        try {
+          const saved = await getJson(`${PAGE_BASE}/api/react`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: message.id, device: state.device, emoji }),
+          });
+          addMessage(saved);
+        } catch (error) { showToast(error.message); }
+      }
+      async function deleteMessage(message) {
+        if (!confirm('Delete this message for everyone in the room?')) return;
+        if (!state.online) return showToast('Reconnect to the room to delete messages.');
+        try {
+          const saved = await getJson(`${PAGE_BASE}/api/delete`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: message.id, device: state.device }),
+          });
+          addMessage(saved);
+          showToast('Message deleted.');
+        } catch (error) { showToast(error.message); }
+      }
+
+      /* ---------- Presence and typing ---------- */
+      async function presenceLoop() {
+        if (PAGE_BASE) {
+          try {
+            const typing = Date.now() - state.typingAt < 4000 ? '1' : '0';
+            const params = new URLSearchParams({ device: state.device, name: state.name, typing, busy: state.call ? '1' : '0', after: String(state.signalCursor) });
+            const result = await getJson(`${PAGE_BASE}/api/presence?${params}`);
+            state.peers = (result.peers || []).filter(peer => peer.device !== state.device);
+            state.signalCursor = Math.max(state.signalCursor, Number(result.next) || 0);
+            for (const signal of result.signals || []) await handleSignal(signal, Number(result.now) || Date.now());
+            renderPeers();
+          } catch (_) {
+            state.peers = [];
+            renderPeers();
+          }
+        }
+        const fast = state.call && state.call.status !== 'active';
+        setTimeout(presenceLoop, fast ? 300 : 1000);
+      }
+      function renderPeers() {
+        const build = (container, emptyText) => {
+          if (!state.peers.length) {
+            const empty = document.createElement('div');
+            empty.className = 'peer-empty';
+            empty.textContent = emptyText;
+            container.replaceChildren(empty);
+            return;
+          }
+          container.replaceChildren(...state.peers.map(peer => {
+            const row = document.createElement('div');
+            row.className = 'peer';
+            const avatar = document.createElement('span');
+            avatar.className = `peer-avatar${peer.busy ? ' busy' : ''}`;
+            avatar.style.background = avatarColor(peer.device);
+            avatar.textContent = initials(peer.name);
+            const text = document.createElement('div');
+            text.className = 'peer-text';
+            const name = document.createElement('div');
+            name.className = 'peer-name';
+            name.textContent = peer.name;
+            const status = document.createElement('div');
+            status.className = 'peer-state';
+            status.textContent = peer.busy ? 'In a call' : peer.typing ? 'Typing…' : 'Online';
+            text.append(name, status);
+            const voice = document.createElement('button');
+            voice.type = 'button';
+            voice.className = 'peer-call';
+            voice.innerHTML = ICONS.phone;
+            voice.title = `Voice call ${peer.name}`;
+            voice.addEventListener('click', () => { $('callPicker').classList.add('hidden'); startCall(peer.device, peer.name, false); });
+            const video = document.createElement('button');
+            video.type = 'button';
+            video.className = 'peer-call';
+            video.innerHTML = ICONS.video;
+            video.title = `Video call ${peer.name}`;
+            video.addEventListener('click', () => { $('callPicker').classList.add('hidden'); startCall(peer.device, peer.name, true); });
+            row.append(avatar, text, voice, video);
+            return row;
+          }));
+        };
+        build($('peerList'), 'Nobody else is online. Open Hearth on another device on this Wi‑Fi.');
+        build($('callPickerList'), 'Nobody else is online right now. Open Hearth on another phone or laptop on this Wi‑Fi to call it.');
+        const typers = state.peers.filter(peer => peer.typing).map(peer => peer.name);
+        const line = $('typingLine');
+        if (typers.length) {
+          line.innerHTML = '<span class="typing-dots"><i></i><i></i><i></i></span>';
+          line.append(document.createTextNode(typers.length === 1 ? `${typers[0]} is typing…` : `${typers.slice(0, 2).join(' and ')}${typers.length > 2 ? ' and others' : ''} are typing…`));
+          line.classList.add('visible');
+        } else {
+          line.classList.remove('visible');
+        }
+      }
+
+      /* ---------- Voice messages ---------- */
+      const recorder = { media: null, stream: null, chunks: [], startedAt: 0, timer: null, analyser: null, audioContext: null, discard: false };
+      function needSecure(feature) {
+        if (window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) return false;
+        updateSecureBanner();
+        showToast(`${feature} needs the secure room address — see the banner above the chat.`);
+        return true;
+      }
+      function pickRecordingType() {
+        const types = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'];
+        return types.find(type => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) || '';
+      }
+      async function startRecording() {
+        if (needSecure('Voice messages')) return;
+        if (!window.MediaRecorder) return showToast('This browser cannot record voice messages.');
+        if (!state.online) return showToast('Reconnect to the home room before recording.');
+        if (state.call) return showToast('Finish the call before recording.');
+        try {
+          recorder.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        } catch (_) {
+          return showToast('Allow microphone access to record voice messages.');
+        }
+        const type = pickRecordingType();
+        recorder.media = new MediaRecorder(recorder.stream, type ? { mimeType: type, audioBitsPerSecond: 48000 } : undefined);
+        recorder.chunks = [];
+        recorder.discard = false;
+        recorder.media.addEventListener('dataavailable', event => { if (event.data && event.data.size) recorder.chunks.push(event.data); });
+        recorder.media.addEventListener('stop', finishRecording);
+        recorder.media.start(250);
+        recorder.startedAt = Date.now();
+        $('recLevel').replaceChildren();
+        $('recorder').classList.add('visible');
+        try {
+          recorder.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          recorder.analyser = recorder.audioContext.createAnalyser();
+          recorder.analyser.fftSize = 512;
+          recorder.audioContext.createMediaStreamSource(recorder.stream).connect(recorder.analyser);
+        } catch (_) { recorder.analyser = null; }
+        const samples = new Uint8Array(512);
+        recorder.timer = setInterval(() => {
+          const seconds = (Date.now() - recorder.startedAt) / 1000;
+          $('recTime').textContent = clock(seconds);
+          let level = 0.15;
+          if (recorder.analyser) {
+            recorder.analyser.getByteTimeDomainData(samples);
+            let peak = 0;
+            for (const value of samples) peak = Math.max(peak, Math.abs(value - 128));
+            level = Math.min(1, 0.1 + peak / 70);
+          }
+          const bar = document.createElement('i');
+          bar.style.height = `${Math.round(level * 100)}%`;
+          $('recLevel').append(bar);
+          while ($('recLevel').childElementCount > 90) $('recLevel').firstChild.remove();
+          if (seconds >= 600) stopRecording(false);
+        }, 100);
+      }
+      function stopRecording(discard) {
+        if (!recorder.media || recorder.media.state === 'inactive') return;
+        recorder.discard = discard;
+        recorder.media.stop();
+      }
+      async function finishRecording() {
+        clearInterval(recorder.timer);
+        $('recorder').classList.remove('visible');
+        if (recorder.stream) recorder.stream.getTracks().forEach(track => track.stop());
+        if (recorder.audioContext) recorder.audioContext.close().catch(() => {});
+        const duration = Math.round((Date.now() - recorder.startedAt) / 1000);
+        const type = (recorder.media.mimeType || 'audio/webm').split(';')[0];
+        const blob = new Blob(recorder.chunks, { type });
+        recorder.media = null;
+        if (recorder.discard) return;
+        if (duration < 1 || !blob.size) return showToast('Voice message too short.');
+        const extension = type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'weba';
+        const stamp = new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(/[\/:]/g, '-');
+        const file = new File([blob], `Voice message ${stamp}.${extension}`, { type });
+        try {
+          const saved = await uploadFile({ file }, '', { voice: '1', duration: String(duration), ...(replyParams() || {}) });
+          cancelReply();
+          addMessage(saved);
+          requestAnimationFrame(scrollToBottom);
+        } catch (error) {
+          showToast(error.message || 'Could not send the voice message.');
+        }
+      }
+
+      /* ---------- Calls ---------- */
+      const callEls = {
+        screen: $('callScreen'), remote: $('remoteVideo'), local: $('localVideo'), top: $('callTop'), identity: $('callIdentity'),
+        avatar: $('callAvatar'), name: $('callName'), status: $('callStatus'), flags: $('callFlags'),
+        incoming: $('incomingActions'), controls: $('callControls'),
+      };
+      const ringer = { context: null, timer: null };
+      function ring(on, outgoing) {
+        clearInterval(ringer.timer);
+        ringer.timer = null;
+        if (window.HearthAndroid && !outgoing) { try { HearthAndroid.ring(!!on); } catch (_) {} }
+        if (!on) return;
+        const beep = () => {
+          try {
+            ringer.context = ringer.context || new (window.AudioContext || window.webkitAudioContext)();
+            const ctx = ringer.context;
+            const notes = outgoing ? [[440, 0, 1.2]] : [[880, 0, .25], [660, .3, .25], [880, .6, .25]];
+            for (const [freq, start, length] of notes) {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.frequency.value = freq;
+              gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+              gain.gain.exponentialRampToValueAtTime(outgoing ? 0.05 : 0.18, ctx.currentTime + start + 0.03);
+              gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + length);
+              osc.connect(gain).connect(ctx.destination);
+              osc.start(ctx.currentTime + start);
+              osc.stop(ctx.currentTime + start + length + 0.05);
+            }
+          } catch (_) {}
+        };
+        beep();
+        ringer.timer = setInterval(beep, outgoing ? 3000 : 2000);
+      }
+      function sendSignal(to, type, callId, data) {
+        return fetch(`${PAGE_BASE}/api/signal`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: state.device, fromName: state.name, to, type, callId, data: data || null }),
+        }).catch(() => {});
+      }
+      function mediaConstraints(video, facing) {
+        return {
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          video: video ? { facingMode: facing || 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } : false,
+        };
+      }
+      async function getCallMedia(video) {
+        try {
+          return { stream: await navigator.mediaDevices.getUserMedia(mediaConstraints(video)), video };
+        } catch (error) {
+          if (!video) throw error;
+          showToast('Camera unavailable — continuing with voice only.');
+          return { stream: await navigator.mediaDevices.getUserMedia(mediaConstraints(false)), video: false };
+        }
+      }
+      function createPeerConnection(call) {
+        // Devices share one Wi‑Fi network, so direct host candidates are enough; nothing leaves the network.
+        const pc = new RTCPeerConnection({ iceServers: [] });
+        call.pc = pc;
+        call.remoteStream = new MediaStream();
+        callEls.remote.srcObject = call.remoteStream;
+        pc.addEventListener('icecandidate', event => {
+          if (event.candidate) sendSignal(call.peer, 'candidate', call.id, event.candidate.toJSON());
+        });
+        pc.addEventListener('track', event => {
+          call.remoteStream.addTrack(event.track);
+          event.track.addEventListener('unmute', updateCallView);
+          event.track.addEventListener('ended', updateCallView);
+          callEls.remote.play().catch(() => {});
+          updateCallView();
+        });
+        pc.addEventListener('connectionstatechange', () => {
+          if (state.call !== call) return;
+          if (pc.connectionState === 'connected') {
+            clearTimeout(call.dropTimer);
+            if (call.status !== 'active') {
+              call.status = 'active';
+              call.startedAt = Date.now();
+              ring(false);
+            }
+            call.reconnecting = false;
+            updateCallView();
+          } else if (pc.connectionState === 'disconnected') {
+            call.reconnecting = true;
+            updateCallView();
+            clearTimeout(call.dropTimer);
+            call.dropTimer = setTimeout(() => { if (state.call === call && pc.connectionState !== 'connected') endCall('failed', true); }, 10000);
+          } else if (pc.connectionState === 'failed') {
+            endCall('failed', true);
+          }
+        });
+        call.local.getTracks().forEach(track => pc.addTrack(track, call.local));
+        return pc;
+      }
+      async function startCall(peer, peerName, video) {
+        if (needSecure('Calling')) return;
+        if (state.call) return showToast('You are already in a call.');
+        if (!state.online) return showToast('Reconnect to the home room to call.');
+        const target = state.peers.find(item => item.device === peer);
+        if (!target) return showToast(`${peerName || 'They'} isn’t online right now.`);
+        if (target.busy) return showToast(`${target.name} is in another call.`);
+        const call = { id: makeId(), peer, peerName: target.name, video, direction: 'out', status: 'ringing', pending: [], muted: false, cameraOff: false, remoteMuted: false, remoteCameraOff: false, speaker: video, facing: 'user' };
+        state.call = call;
+        showCallScreen();
+        updateCallView();
+        try {
+          const media = await getCallMedia(video);
+          if (state.call !== call) { media.stream.getTracks().forEach(track => track.stop()); return; }
+          call.local = media.stream;
+          call.video = media.video;
+          call.speaker = media.video;
+          attachLocal();
+          const pc = createPeerConnection(call);
+          const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: call.video });
+          await pc.setLocalDescription(offer);
+          await sendSignal(peer, 'offer', call.id, { sdp: pc.localDescription.toJSON(), video: call.video });
+          setAndroidCall(true);
+          ring(true, true);
+          updateCallView();
+          call.answerTimer = setTimeout(() => { if (state.call === call && call.status === 'ringing') endCall('no-answer', true); }, 45000);
+        } catch (error) {
+          showToast('Allow microphone (and camera) access to make calls.');
+          endCall('failed', false);
+        }
+      }
+      async function handleSignal(signal, serverNow) {
+        const call = state.call;
+        const matches = call && call.id === signal.callId && call.peer === signal.from;
+        switch (signal.type) {
+          case 'offer': {
+            if (serverNow - Number(signal.at) > 40000) return;
+            if (call) { sendSignal(signal.from, 'busy', signal.callId); return; }
+            const data = signal.data || {};
+            state.call = { id: signal.callId, peer: signal.from, peerName: safeText(signal.fromName) || 'Someone', video: !!data.video, direction: 'in', status: 'incoming', offer: data.sdp, pending: [], muted: false, cameraOff: false, remoteMuted: false, remoteCameraOff: false, speaker: !!data.video, facing: 'user' };
+            showCallScreen();
+            updateCallView();
+            ring(true, false);
+            notifyIncoming(state.call);
+            break;
+          }
+          case 'answer':
+            if (matches && call.direction === 'out' && call.pc && !call.pc.currentRemoteDescription) {
+              clearTimeout(call.answerTimer);
+              call.status = 'connecting';
+              ring(false);
+              await call.pc.setRemoteDescription(signal.data.sdp);
+              await flushCandidates(call);
+              updateCallView();
+            }
+            break;
+          case 'candidate':
+            if (!matches || !signal.data) break;
+            if (call.pc && call.pc.remoteDescription) await call.pc.addIceCandidate(signal.data).catch(() => {});
+            else call.pending.push(signal.data);
+            break;
+          case 'decline': if (matches) endCall('declined', false); break;
+          case 'busy': if (matches) endCall('busy', false); break;
+          case 'cancel': if (matches) endCall('missed', false); break;
+          case 'hangup': if (matches) endCall('ended', false); break;
+          case 'state':
+            if (matches && signal.data) {
+              call.remoteMuted = !!signal.data.muted;
+              call.remoteCameraOff = !!signal.data.cameraOff;
+              call.remoteScreen = !!signal.data.screen;
+              updateCallView();
+            }
+            break;
+        }
+      }
+      async function flushCandidates(call) {
+        const queued = call.pending.splice(0);
+        for (const candidate of queued) await call.pc.addIceCandidate(candidate).catch(() => {});
+      }
+      async function acceptCall(withVideo) {
+        const call = state.call;
+        if (!call || call.direction !== 'in' || call.status !== 'incoming') return;
+        if (needSecure('Calling')) { declineCall(); return; }
+        ring(false);
+        call.status = 'connecting';
+        updateCallView();
+        try {
+          const media = await getCallMedia(withVideo);
+          if (state.call !== call) { media.stream.getTracks().forEach(track => track.stop()); return; }
+          call.local = media.stream;
+          call.sendingVideo = media.video;
+          call.video = call.video || media.video;
+          call.speaker = call.video;
+          attachLocal();
+          const pc = createPeerConnection(call);
+          await pc.setRemoteDescription(call.offer);
+          await flushCandidates(call);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await sendSignal(call.peer, 'answer', call.id, { sdp: pc.localDescription.toJSON() });
+          setAndroidCall(true);
+          updateCallView();
+        } catch (_) {
+          showToast('Allow microphone (and camera) access to answer calls.');
+          endCall('failed', true);
+        }
+      }
+      function declineCall() {
+        const call = state.call;
+        if (!call) return;
+        sendSignal(call.peer, 'decline', call.id);
+        endCall('declined', false);
+      }
+      function endCall(reason, notifyPeer) {
+        const call = state.call;
+        if (!call) return;
+        state.call = null;
+        if (notifyPeer) {
+          const type = call.status === 'ringing' ? 'cancel' : call.status === 'incoming' ? 'decline' : 'hangup';
+          sendSignal(call.peer, type, call.id);
+        }
+        ring(false);
+        clearTimeout(call.answerTimer);
+        clearTimeout(call.dropTimer);
+        clearInterval(call.clockTimer);
+        if (call.screenStream) call.screenStream.getTracks().forEach(track => track.stop());
+        if (call.local) call.local.getTracks().forEach(track => track.stop());
+        if (call.pc) call.pc.close();
+        callEls.remote.srcObject = null;
+        callEls.local.srcObject = null;
+        callEls.screen.classList.remove('visible');
+        setAndroidCall(false);
+        const duration = call.startedAt ? Math.round((Date.now() - call.startedAt) / 1000) : 0;
+        const messages = { declined: 'Call declined.', busy: `${call.peerName} is on another call.`, 'no-answer': 'No answer.', failed: 'Call disconnected.', missed: `Missed call from ${call.peerName}.` };
+        if (call.startedAt) showToast(`Call ended · ${clock(duration)}`);
+        else if (messages[reason]) showToast(messages[reason]);
+        if (call.direction === 'out') {
+          const status = call.startedAt ? 'completed' : reason === 'declined' ? 'declined' : reason === 'busy' ? 'busy' : reason === 'failed' ? 'failed' : 'no-answer';
+          const kind = call.video ? 'Video call' : 'Voice call';
+          const message = {
+            id: makeId(), sender: state.device, senderName: state.name, createdAt: Date.now(), kind: 'call', seq: 0,
+            text: `${kind} with ${call.peerName}${call.startedAt ? ` · ${clock(duration)}` : ''}`,
+            call: { video: !!call.video, status, duration, with: call.peerName },
+          };
+          addMessage(message);
+          sendQueuedMessages();
+        }
+      }
+      function attachLocal() {
+        const call = state.call;
+        if (!call || !call.local) return;
+        callEls.local.srcObject = call.local;
+        callEls.local.play().catch(() => {});
+        navigator.mediaDevices.enumerateDevices().then(devices => {
+          const cameras = devices.filter(device => device.kind === 'videoinput').length;
+          $('flipButton').classList.toggle('hidden', !(cameras > 1 && hasLocalVideo()));
+        }).catch(() => {});
+      }
+      function hasLocalVideo() {
+        const call = state.call;
+        return !!(call && call.local && call.local.getVideoTracks().length);
+      }
+      function showCallScreen() {
+        callEls.screen.classList.add('visible');
+        closeMessageMenu();
+        $('callPicker').classList.add('hidden');
+      }
+      function updateCallView() {
+        const call = state.call;
+        if (!call) return;
+        const remoteVideo = call.remoteStream && call.remoteStream.getVideoTracks().some(track => track.readyState === 'live' && !track.muted);
+        const showRemote = call.status === 'active' && remoteVideo && !call.remoteCameraOff;
+        callEls.remote.classList.toggle('hidden', !showRemote);
+        callEls.identity.classList.toggle('hidden', !!showRemote);
+        const localVideo = hasLocalVideo() && !call.cameraOff;
+        callEls.local.classList.toggle('hidden', !localVideo);
+        callEls.local.classList.toggle('no-mirror', call.facing === 'environment' || !!call.screenStream);
+        callEls.avatar.textContent = initials(call.peerName);
+        callEls.avatar.style.background = avatarColor(call.peer);
+        callEls.avatar.classList.toggle('pulse', call.status !== 'active');
+        callEls.name.textContent = call.peerName;
+        const kind = call.video ? 'video call' : 'voice call';
+        let status = '';
+        if (call.status === 'incoming') status = `Incoming ${kind}…`;
+        else if (call.status === 'ringing') status = 'Ringing…';
+        else if (call.status === 'connecting') status = 'Connecting…';
+        else status = call.reconnecting ? 'Reconnecting…' : clock((Date.now() - call.startedAt) / 1000);
+        callEls.status.textContent = status;
+        callEls.top.textContent = `${call.peerName} · ${status}`;
+        callEls.top.classList.toggle('hidden', !showRemote);
+        const flags = [];
+        if (call.remoteMuted) flags.push(`${call.peerName} muted`);
+        if (call.remoteScreen) flags.push('Sharing screen');
+        if (call.status === 'active') flags.push(call.video ? 'HD video · Wi‑Fi' : 'Wi‑Fi call');
+        callEls.flags.replaceChildren(...flags.map(text => { const flag = document.createElement('span'); flag.textContent = text; return flag; }));
+        const incoming = call.status === 'incoming';
+        callEls.incoming.classList.toggle('hidden', !incoming);
+        callEls.controls.classList.toggle('hidden', incoming);
+        $('acceptVideo').classList.toggle('hidden', !call.video);
+        $('muteButton').classList.toggle('off', call.muted);
+        $('muteButton').lastChild.textContent = call.muted ? 'Unmute' : 'Mute';
+        $('cameraButton').classList.toggle('hidden', !hasLocalVideo());
+        $('cameraButton').classList.toggle('off', call.cameraOff);
+        $('speakerButton').classList.toggle('hidden', !window.HearthAndroid);
+        $('speakerButton').classList.toggle('off', !!call.speaker);
+        $('screenButton').classList.toggle('hidden', !(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && hasLocalVideo() && !IN_ANDROID_APP));
+        $('screenButton').classList.toggle('off', !!call.screenStream);
+        if (call.status === 'active' && !call.clockTimer) call.clockTimer = setInterval(updateCallView, 1000);
+      }
+      function shareState() {
+        const call = state.call;
+        if (call && call.pc) sendSignal(call.peer, 'state', call.id, { muted: call.muted, cameraOff: call.cameraOff, screen: !!call.screenStream });
+      }
+      function setAndroidCall(active) {
+        if (!window.HearthAndroid) return;
+        try { HearthAndroid.setInCall(active, !!(state.call && state.call.speaker)); } catch (_) {}
+      }
+      function videoSender() {
+        const call = state.call;
+        return call && call.pc && call.pc.getSenders().find(sender => sender.track && sender.track.kind === 'video');
+      }
+      async function flipCamera() {
+        const call = state.call;
+        if (!hasLocalVideo() || call.screenStream) return;
+        const facing = call.facing === 'user' ? 'environment' : 'user';
+        try {
+          const fresh = await navigator.mediaDevices.getUserMedia({ video: mediaConstraints(true, facing).video });
+          const track = fresh.getVideoTracks()[0];
+          const old = call.local.getVideoTracks()[0];
+          const sender = videoSender();
+          if (sender) await sender.replaceTrack(track);
+          call.local.removeTrack(old);
+          old.stop();
+          call.local.addTrack(track);
+          track.enabled = !call.cameraOff;
+          call.facing = facing;
+          callEls.local.srcObject = call.local;
+          updateCallView();
+        } catch (_) { showToast('Could not switch camera.'); }
+      }
+      async function toggleScreenShare() {
+        const call = state.call;
+        const sender = videoSender();
+        if (!call || !sender) return;
+        if (call.screenStream) {
+          call.screenStream.getTracks().forEach(track => track.stop());
+          call.screenStream = null;
+          await sender.replaceTrack(call.local.getVideoTracks()[0]);
+          callEls.local.srcObject = call.local;
+        } else {
+          try {
+            call.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+          } catch (_) { return; }
+          const track = call.screenStream.getVideoTracks()[0];
+          track.addEventListener('ended', () => { if (state.call === call && call.screenStream) toggleScreenShare(); });
+          await sender.replaceTrack(track);
+          callEls.local.srcObject = call.screenStream;
+        }
+        updateCallView();
+        shareState();
+      }
+      function notifyIncoming(call) {
+        if (!document.hidden || !('Notification' in window) || Notification.permission !== 'granted') return;
+        try { new Notification(`Incoming ${call.video ? 'video' : 'voice'} call`, { body: call.peerName, tag: 'hearth-call', requireInteraction: true }); } catch (_) {}
+      }
+      $('acceptVoice').addEventListener('click', () => acceptCall(false));
+      $('acceptVideo').addEventListener('click', () => acceptCall(true));
+      $('declineCall').addEventListener('click', declineCall);
+      $('hangupButton').addEventListener('click', () => endCall('ended', true));
+      $('muteButton').addEventListener('click', () => {
+        const call = state.call;
+        if (!call || !call.local) return;
+        call.muted = !call.muted;
+        call.local.getAudioTracks().forEach(track => { track.enabled = !call.muted; });
+        updateCallView();
+        shareState();
+      });
+      $('cameraButton').addEventListener('click', () => {
+        const call = state.call;
+        if (!hasLocalVideo()) return;
+        call.cameraOff = !call.cameraOff;
+        call.local.getVideoTracks().forEach(track => { track.enabled = !call.cameraOff; });
+        updateCallView();
+        shareState();
+      });
+      $('flipButton').addEventListener('click', flipCamera);
+      $('screenButton').addEventListener('click', toggleScreenShare);
+      $('speakerButton').addEventListener('click', () => {
+        const call = state.call;
+        if (!call || !window.HearthAndroid) return;
+        call.speaker = !call.speaker;
+        try { HearthAndroid.setSpeaker(call.speaker); } catch (_) {}
+        updateCallView();
+      });
+      $('callToggle').addEventListener('click', event => {
+        event.stopPropagation();
+        if (needSecure('Calling')) return;
+        renderPeers();
+        $('callPicker').classList.toggle('hidden');
+      });
+      window.addEventListener('beforeunload', () => {
+        const call = state.call;
+        if (call && navigator.sendBeacon) {
+          const type = call.status === 'ringing' ? 'cancel' : call.status === 'incoming' ? 'decline' : 'hangup';
+          navigator.sendBeacon(`${PAGE_BASE}/api/signal`, new Blob([JSON.stringify({ from: state.device, fromName: state.name, to: call.peer, type, callId: call.id })], { type: 'application/json' }));
+        }
+      });
 
       /* ---------- Events ---------- */
       function toggleAttachMenu(force) {
@@ -1370,20 +2361,46 @@
       document.addEventListener('pointerdown', event => {
         if (!messageMenu.contains(event.target)) closeMessageMenu();
         if (!event.target.closest('#attachMenu, #attachButton')) toggleAttachMenu(false);
+        if (!event.target.closest('#callPicker, #callToggle')) $('callPicker').classList.add('hidden');
       });
       document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
-        closeMessageMenu(); toggleAttachMenu(false); closeLightbox(); closeDrawer(); closeNameModal();
+        closeMessageMenu(); toggleAttachMenu(false); closeLightbox(); closeDrawer(); closeNameModal(); cancelReply();
+        $('callPicker').classList.add('hidden');
         if ($('searchBar').classList.contains('visible')) closeSearch();
       });
       window.addEventListener('resize', closeMessageMenu);
+      function updateSecureBanner() {
+        const banner = $('secureBanner');
+        if (window.isSecureContext || !state.info) return banner.classList.add('hidden');
+        if (state.info.secureUrl && !IN_ANDROID_APP) {
+          $('secureText').textContent = 'Voice messages and calls need the secure room address. Your browser will warn once because the room phone signs its own certificate — choose Advanced → Proceed.';
+          $('secureLink').href = state.info.secureUrl + '/';
+          $('secureLink').classList.remove('hidden');
+        } else {
+          $('secureText').textContent = 'Voice messages and calls need Hearth 2.0 on the phone hosting this room. Update that phone to turn them on.';
+          $('secureLink').classList.add('hidden');
+        }
+        banner.classList.remove('hidden');
+      }
       async function copyRoomAddress() {
-        const address = state.info && state.info.url;
+        const address = state.info && ((window.isSecureContext && state.info.secureUrl) || state.info.url);
         if (!address) return showToast('Connect the room phone to Wi‑Fi first.');
         copyText(address, 'Room address copied.');
       }
       $('copyLink').addEventListener('click', copyRoomAddress);
       $('quickCopy').addEventListener('click', copyRoomAddress);
+      $('micButton').addEventListener('click', startRecording);
+      $('recCancel').addEventListener('click', () => stopRecording(true));
+      $('recSend').addEventListener('click', () => stopRecording(false));
+      $('replyCancel').addEventListener('click', cancelReply);
+      $('jumpButton').addEventListener('click', () => { scrollToBottom(); });
+      messagesEl.addEventListener('scroll', () => {
+        const near = isNearBottom();
+        $('jumpButton').classList.toggle('hidden', near);
+        if (near) { state.unseen = 0; $('jumpBadge').classList.add('hidden'); }
+      }, { passive: true });
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) { state.hiddenUnread = 0; document.title = TITLE; } });
       $('composer').addEventListener('submit', async (event) => {
         event.preventDefault();
         if (state.uploading) return;
@@ -1399,6 +2416,8 @@
         }
       });
       input.addEventListener('input', () => {
+        state.typingAt = input.value.trim() ? Date.now() : 0;
+        updateComposerButtons();
         input.style.height = 'auto';
         input.style.height = `${Math.min(input.scrollHeight, 150)}px`;
       });
@@ -1416,8 +2435,11 @@
           persistMessages();
         });
       });
-      discoverRoom().then(pollRoom);
-      setInterval(pollRoom, 1800);
+      updateComposerButtons();
+      renderPeers();
+      discoverRoom().then(pollRoom).then(() => { state.loaded = true; });
+      setInterval(pollRoom, 1500);
+      presenceLoop();
     })();
   </script>
 </body>
