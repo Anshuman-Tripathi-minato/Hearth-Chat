@@ -89,6 +89,11 @@ final class RoomDiscovery {
     private boolean discoveryRunning;
     private boolean destroyed;
     private volatile boolean autoJoinPending;
+    private final Hotspot hotspot;
+    private volatile JSONObject hotspotInfo;
+    private volatile boolean joinedHotspot;
+    private volatile boolean joiningHotspot;
+    private volatile String lastError = "";
 
     RoomDiscovery(Context context, Listener listener) {
         this.context = context.getApplicationContext();
@@ -101,6 +106,7 @@ final class RoomDiscovery {
         }
         nodeId = savedId;
         nsdManager = (NsdManager) this.context.getSystemService(Context.NSD_SERVICE);
+        hotspot = new Hotspot(this.context);
     }
 
     static RoomDiscovery current() {
@@ -112,13 +118,20 @@ final class RoomDiscovery {
         acquireMulticastLock();
         startDiscovery();
         String lastRoom = preferences.getString(LanService.KEY_LAST_ROOM_ID, "");
-        if (preferences.getBoolean(LanService.KEY_HOSTING, false)) {
+        if (preferences.getBoolean(LanService.KEY_HOSTING, false) && preferences.getBoolean(KEY_HOTSPOT, false)) {
+            publish("", false, "Restarting your hotspot room…");
+            startHotspotRoom(nodeId.equals(lastRoom));
+        } else if (preferences.getBoolean(LanService.KEY_HOSTING, false)) {
             startHosting();
             if (nodeId.equals(lastRoom)) join(nodeId);
             else publish("", false, "Hosting " + quoted(hostedName()));
         } else {
             autoJoinPending = !lastRoom.isEmpty();
             publish("", false, autoJoinPending ? "Looking for your last room…" : "Choose a room to join");
+            // Hotspot rooms are never joined automatically (Android asks before switching Wi-Fi).
+            handler.postDelayed(() -> {
+                if (autoJoinPending) cancelAutoJoin();
+            }, 12_000);
         }
     }
 
@@ -133,12 +146,33 @@ final class RoomDiscovery {
 
     /* ---------- Actions from the app (main thread) ---------- */
 
-    void createRoom(String name) {
+    static final String KEY_HOTSPOT = "hosting_hotspot";
+
+    /** Creates this phone's room, either on the current Wi-Fi or on its own hotspot (no router needed). */
+    void createRoom(String name, boolean useHotspot) {
         String cleaned = name == null ? "" : name.trim();
         if (cleaned.isEmpty()) cleaned = ownerName() + "'s room";
         if (cleaned.length() > 40) cleaned = cleaned.substring(0, 40);
         boolean renamed = !cleaned.equals(preferences.getString(LanService.KEY_ROOM_NAME, ""));
-        preferences.edit().putBoolean(LanService.KEY_HOSTING, true).putString(LanService.KEY_ROOM_NAME, cleaned).apply();
+        lastError = "";
+        if (joinedHotspot) leave();
+        if (useHotspot) {
+            if (hotspot.hosting() && server != null) {
+                preferences.edit().putString(LanService.KEY_ROOM_NAME, cleaned).apply();
+                join(nodeId);
+                return;
+            }
+            if (server != null && !hotspot.hosting()) {
+                unregisterHost();
+                stopServer();
+            }
+            preferences.edit().putString(LanService.KEY_ROOM_NAME, cleaned).apply();
+            startHotspotRoom(true);
+            return;
+        }
+        if (hotspot.hosting()) stopHotspot();
+        preferences.edit().putBoolean(LanService.KEY_HOSTING, true).putBoolean(KEY_HOTSPOT, false)
+                .putString(LanService.KEY_ROOM_NAME, cleaned).apply();
         if (server != null && renamed) {
             unregisterHost();
             registerHost();
@@ -147,12 +181,60 @@ final class RoomDiscovery {
         join(nodeId);
     }
 
+    private void startHotspotRoom(boolean openIt) {
+        joiningHotspot = true;
+        hotspot.startHost(new Hotspot.HostCallback() {
+            @Override public void onStarted(String ssid, String passphrase, int security, String address) {
+                joiningHotspot = false;
+                preferences.edit().putBoolean(LanService.KEY_HOSTING, true).putBoolean(KEY_HOTSPOT, true).apply();
+                try {
+                    JSONObject info = new JSONObject();
+                    info.put("id", nodeId);
+                    info.put("name", hostedName());
+                    info.put("ssid", ssid);
+                    info.put("pass", passphrase);
+                    info.put("security", security);
+                    info.put("ip", address);
+                    info.put("port", LanServer.PORT);
+                    hotspotInfo = info;
+                    BleMesh mesh = BleMesh.current();
+                    if (mesh != null) mesh.setHostedRoom(info);
+                } catch (JSONException ignored) {
+                }
+                startHosting();
+                if (openIt) join(nodeId);
+                else publish("", false, "Hosting " + quoted(hostedName()) + " on this phone's hotspot");
+            }
+
+            @Override public void onFailed(String reason) {
+                joiningHotspot = false;
+                lastError = "permission".equals(reason) ? "permission-hotspot" : reason;
+                preferences.edit().putBoolean(KEY_HOTSPOT, false).apply();
+                publish("", false, "Hotspot room could not start");
+            }
+        });
+    }
+
+    private void stopHotspot() {
+        hotspot.stopHost();
+        hotspotInfo = null;
+        BleMesh mesh = BleMesh.current();
+        if (mesh != null) mesh.setHostedRoom(null);
+    }
+
     void stopHosting() {
-        preferences.edit().putBoolean(LanService.KEY_HOSTING, false).apply();
+        preferences.edit().putBoolean(LanService.KEY_HOSTING, false).putBoolean(KEY_HOTSPOT, false).apply();
         boolean wasJoined = nodeId.equals(joinedId);
         unregisterHost();
         stopServer();
+        stopHotspot();
         if (wasJoined) leave();
+    }
+
+    String takeError() {
+        String error = lastError;
+        lastError = "";
+        return error;
     }
 
     void join(String id) {
@@ -161,8 +243,7 @@ final class RoomDiscovery {
             if (server == null) return;
             joinedId = nodeId;
             preferences.edit().putString(LanService.KEY_LAST_ROOM_ID, nodeId).apply();
-            String address = LanServer.getWifiAddress(context);
-            String url = "0.0.0.0".equals(address) ? "http://127.0.0.1:" + LanServer.PORT : "http://" + address + ":" + LanServer.PORT;
+            String url = "http://" + ownAddress() + ":" + LanServer.PORT;
             publish(url, true, "Hosting " + quoted(hostedName()));
             return;
         }
@@ -170,13 +251,74 @@ final class RoomDiscovery {
         synchronized (roomsLock) {
             room = rooms.get(id);
         }
-        if (room == null) return;
+        if (room == null) {
+            JSONObject hotspotRoom = findHotspotRoom(id);
+            if (hotspotRoom != null) joinHotspotRoom(hotspotRoom);
+            return;
+        }
+        if (joinedHotspot) leave();
         joinedId = id;
         preferences.edit().putString(LanService.KEY_LAST_ROOM_ID, id).apply();
         publish(room.url(), false, "In " + quoted(room.name));
     }
 
+    private JSONObject findHotspotRoom(String id) {
+        BleMesh mesh = BleMesh.current();
+        if (mesh == null) return null;
+        JSONArray found = mesh.hotspotRooms();
+        for (int i = 0; i < found.length(); i++) {
+            JSONObject room = found.optJSONObject(i);
+            if (room != null && id.equals(room.optString("id"))) return room;
+        }
+        return null;
+    }
+
+    private void joinHotspotRoom(JSONObject room) {
+        String id = room.optString("id");
+        joiningHotspot = true;
+        lastError = "";
+        publish("", false, "Connecting to " + quoted(room.optString("name")) + "…");
+        hotspot.join(room.optString("ssid"), room.optString("pass"), room.optInt("security", 1), room.optString("ip"),
+                new Hotspot.JoinCallback() {
+                    @Override public void onConnected(String address) {
+                        joiningHotspot = false;
+                        joinedHotspot = true;
+                        joinedId = id;
+                        preferences.edit().putString(LanService.KEY_LAST_ROOM_ID, id).apply();
+                        String target = address.isEmpty() ? room.optString("ip") : address;
+                        publish("http://" + target + ":" + room.optInt("port", LanServer.PORT), false, "In " + quoted(room.optString("name")) + " (hotspot)");
+                    }
+
+                    @Override public void onFailed(String reason) {
+                        joiningHotspot = false;
+                        lastError = reason;
+                        publish("", false, "Choose a room to join");
+                    }
+
+                    @Override public void onLost() {
+                        joinedHotspot = false;
+                        if (id.equals(joinedId)) {
+                            joinedId = "";
+                            lastError = "Lost the hotspot room. Move closer to the host phone and join again.";
+                            publish("", false, "Choose a room to join");
+                        }
+                    }
+                });
+    }
+
+    private String ownAddress() {
+        JSONObject info = hotspotInfo;
+        if (info != null && !info.optString("ip").isEmpty()) return info.optString("ip");
+        String address = LanServer.getWifiAddress(context);
+        return "0.0.0.0".equals(address) ? "127.0.0.1" : address;
+    }
+
     void leave() {
+        if (joinedHotspot || joiningHotspot) {
+            hotspot.leave();
+            joinedHotspot = false;
+            joiningHotspot = false;
+        }
         autoJoinPending = false;
         joinedId = "";
         preferences.edit().remove(LanService.KEY_LAST_ROOM_ID).apply();
@@ -201,7 +343,23 @@ final class RoomDiscovery {
             state.put("autoJoining", autoJoinPending);
             state.put("lastRoomId", preferences.getString(LanService.KEY_LAST_ROOM_ID, ""));
             state.put("owner", ownerName());
-            state.put("wifi", !"0.0.0.0".equals(LanServer.getWifiAddress(context)));
+            state.put("wifi", !"0.0.0.0".equals(LanServer.getWifiAddress(context)) || hotspotInfo != null);
+            state.put("joining", joiningHotspot);
+            state.put("error", lastError);
+            JSONObject info = hotspotInfo;
+            if (info != null) state.put("hotspot", info);
+            BleMesh mesh = BleMesh.current();
+            if (mesh != null) {
+                JSONObject meshState = mesh.state();
+                JSONObject summary = new JSONObject();
+                summary.put("status", meshState.optString("status"));
+                summary.put("running", meshState.optBoolean("running"));
+                summary.put("permission", meshState.optBoolean("permission"));
+                JSONArray meshPeers = meshState.optJSONArray("peers");
+                summary.put("peers", meshPeers == null ? 0 : meshPeers.length());
+                summary.put("longRange", meshState.optBoolean("longRange"));
+                state.put("mesh", summary);
+            }
         } catch (JSONException ignored) {
         }
         return state;
@@ -212,15 +370,40 @@ final class RoomDiscovery {
         JSONArray list = new JSONArray();
         try {
             if (includeOwn && server != null) {
-                String address = LanServer.getWifiAddress(context);
-                list.put(roomJson(new Room(nodeId, hostedName(), ownerName(), "0.0.0.0".equals(address) ? "127.0.0.1" : address,
-                        LanServer.PORT, 3), true));
+                JSONObject own = roomJson(new Room(nodeId, hostedName(), ownerName(), ownAddress(), LanServer.PORT, 3), true);
+                own.put("type", hotspotInfo != null ? "hotspot" : "wifi");
+                list.put(own);
             }
             List<Room> found;
             synchronized (roomsLock) {
                 found = new ArrayList<>(rooms.values());
             }
-            for (Room room : found) list.put(roomJson(room, false));
+            Set<String> listed = new HashSet<>();
+            listed.add(nodeId);
+            for (Room room : found) {
+                JSONObject item = roomJson(room, false);
+                item.put("type", "wifi");
+                list.put(item);
+                listed.add(room.id);
+            }
+            // Hotspot rooms heard about over Bluetooth that are not already reachable on this Wi-Fi.
+            BleMesh mesh = BleMesh.current();
+            JSONArray hotspots = mesh == null ? new JSONArray() : mesh.hotspotRooms();
+            for (int i = 0; i < hotspots.length(); i++) {
+                JSONObject room = hotspots.optJSONObject(i);
+                if (room == null || listed.contains(room.optString("id"))) continue;
+                JSONObject item = new JSONObject();
+                item.put("id", room.optString("id"));
+                item.put("name", room.optString("name", "Hotspot room"));
+                item.put("host", room.optString("host"));
+                item.put("url", "http://" + room.optString("ip") + ":" + room.optInt("port", LanServer.PORT));
+                item.put("secureUrl", "https://" + room.optString("ip") + ":" + LanServer.SECURE_PORT);
+                item.put("type", "hotspot");
+                item.put("hops", room.optInt("hops", 1));
+                item.put("mine", false);
+                item.put("joined", room.optString("id").equals(joinedId));
+                list.put(item);
+            }
         } catch (JSONException ignored) {
         }
         return list;
@@ -246,7 +429,22 @@ final class RoomDiscovery {
 
     String ownerName() {
         String name = preferences.getString(LanService.KEY_USER_NAME, "");
-        return name.isEmpty() ? Build.MODEL : name;
+        return name.isEmpty() ? deviceName(context) : name;
+    }
+
+    /** The phone's friendly name from Settings (for example "Galaxy S24"), falling back to its model. */
+    static String deviceName(Context context) {
+        try {
+            String name = android.provider.Settings.Global.getString(context.getContentResolver(), "device_name");
+            if (name != null && !name.trim().isEmpty()) return name.trim();
+        } catch (Exception ignored) {
+        }
+        String model = Build.MODEL == null ? "Phone" : Build.MODEL;
+        String maker = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER;
+        if (!maker.isEmpty() && !model.toLowerCase(java.util.Locale.ROOT).startsWith(maker.toLowerCase(java.util.Locale.ROOT))) {
+            model = Character.toUpperCase(maker.charAt(0)) + maker.substring(1) + " " + model;
+        }
+        return model;
     }
 
     private static String quoted(String name) {
@@ -268,6 +466,10 @@ final class RoomDiscovery {
 
             @Override public JSONArray otherRooms() {
                 return roomsJson(false);
+            }
+
+            @Override public String address() {
+                return ownAddress();
             }
         });
         if (!created.start()) {

@@ -2,65 +2,81 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <title>Hearth · Rooms</title>
   <style>
     :root {
       color-scheme: light;
       --ink: #172c2a; --muted: #76847e; --faint: #9aa59f; --line: #e5ebe6; --paper: #fff; --canvas: #f4f7f4;
-      --mint: #b6f1d4; --mint-strong: #5fbe91; --mint-dark: #245d48; --mint-soft: #e6f7ed; --card: #fff; --warn: #fff6e8; --warn-ink: #7a5520;
-      --shadow: 0 10px 30px rgba(28, 54, 44, .08);
+      --mint: #b6f1d4; --mint-strong: #5fbe91; --mint-dark: #245d48; --mint-soft: #e6f7ed; --card: #fff;
+      --warn: #fff6e8; --warn-ink: #7a5520; --blue: #3e7bfa; --blue-soft: #e8f0ff; --danger: #e5484d;
+      --shadow: 0 8px 26px rgba(28, 54, 44, .07);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     @media (prefers-color-scheme: dark) {
       :root { color-scheme: dark; --ink: #e3ece7; --muted: #8fa197; --faint: #6f8278; --line: #22312c; --paper: #121e1a; --canvas: #0f1a17;
-        --mint: #3f9c72; --mint-strong: #5fbe91; --mint-dark: #a6e6c6; --mint-soft: #1b3229; --card: #16231f; --warn: #2a2214; --warn-ink: #e8c28a; --shadow: 0 10px 30px rgba(0,0,0,.35); }
+        --mint: #3f9c72; --mint-strong: #5fbe91; --mint-dark: #a6e6c6; --mint-soft: #1b3229; --card: #16231f; --warn: #2a2214; --warn-ink: #e8c28a;
+        --blue-soft: #18233a; --shadow: 0 8px 26px rgba(0,0,0,.3); }
     }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: var(--canvas); color: var(--ink); -webkit-tap-highlight-color: transparent; }
+    html, body { overscroll-behavior: none; }
+    body { margin: 0; min-height: 100vh; background: var(--canvas); color: var(--ink); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
     button, input { font: inherit; color: inherit; }
-    .wrap { max-width: 560px; margin: 0 auto; padding: 18px 16px max(28px, env(safe-area-inset-bottom)); }
-    header { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
+    .wrap { max-width: 560px; margin: 0 auto; padding: 16px 16px max(28px, env(safe-area-inset-bottom)); }
+    header { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; }
     .mark { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; color: #d9ffe9; background: linear-gradient(145deg, #23503f, #163129); }
     .mark svg { width: 22px; height: 22px; }
-    header h1 { flex: 1; margin: 0; font-size: 19px; letter-spacing: -.04em; }
-    .me { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); font-size: 12.5px; font-weight: 650; cursor: pointer; }
-    .me span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; color: #1f5541; background: #cfeedd; font-size: 11px; font-weight: 800; }
-    h2 { margin: 22px 4px 10px; color: var(--faint); font-size: 10.5px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
-    .card { padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); box-shadow: var(--shadow); }
+    header h1 { flex: 1; margin: 0; font-size: 20px; letter-spacing: -.04em; }
+    .me { display: flex; align-items: center; gap: 8px; max-width: 55%; padding: 6px 12px 6px 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); font-size: 12.5px; font-weight: 650; cursor: pointer; }
+    .me span { width: 26px; height: 26px; flex: 0 0 26px; display: grid; place-items: center; border-radius: 50%; color: #1f5541; background: #cfeedd; font-size: 11px; font-weight: 800; }
+    .me b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    h2 { display: flex; align-items: center; gap: 8px; margin: 22px 4px 10px; color: var(--faint); font-size: 10.5px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    h2 svg { width: 14px; height: 14px; }
+    .card { padding: 15px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); box-shadow: var(--shadow); }
     .card + .card { margin-top: 10px; }
-    .notice { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 14px; background: var(--warn); color: var(--warn-ink); font-size: 12.5px; line-height: 1.5; }
+    .notice { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; padding: 12px 14px; border-radius: 14px; background: var(--warn); color: var(--warn-ink); font-size: 12.5px; line-height: 1.5; }
     .notice.mint { background: var(--mint-soft); color: var(--mint-dark); }
     .notice .grow { flex: 1; }
     .spinner { width: 18px; height: 18px; flex: 0 0 18px; border: 2.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .room { display: flex; align-items: center; gap: 12px; }
-    .room-avatar { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; border-radius: 15px; color: #fff; font-size: 17px; font-weight: 800; }
+    .room-avatar { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; border-radius: 15px; color: #fff; font-size: 16px; font-weight: 800; }
     .room-text { flex: 1; min-width: 0; }
     .room-name { overflow: hidden; font-size: 15px; font-weight: 750; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
-    .room-sub { margin-top: 3px; color: var(--muted); font-size: 12px; }
-    .live { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; color: #e5484d; font-weight: 700; }
-    .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-    .badge { padding: 4px 8px; border-radius: 8px; color: var(--mint-dark); background: var(--mint-soft); font-size: 10.5px; font-weight: 800; }
+    .room-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 7px; font-size: 10.5px; font-weight: 750; }
+    .tag.wifi { color: var(--mint-dark); background: var(--mint-soft); }
+    .tag.hotspot { color: var(--blue); background: var(--blue-soft); }
+    .tag.live { color: #fff; background: var(--danger); }
+    .badge { padding: 4px 8px; border-radius: 8px; color: var(--mint-dark); background: var(--mint-soft); font-size: 10.5px; font-weight: 800; white-space: nowrap; }
     .btn { height: 40px; padding: 0 16px; border: 0; border-radius: 12px; color: #12372a; background: var(--mint); font-size: 13px; font-weight: 750; cursor: pointer; white-space: nowrap; }
     @media (prefers-color-scheme: dark) { .btn { color: #06180f; } }
     .btn.secondary { border: 1px solid var(--line); color: var(--ink); background: var(--paper); }
-    .btn.danger { border: 1px solid var(--line); color: #e5484d; background: var(--paper); }
+    .btn.danger { border: 1px solid var(--line); color: var(--danger); background: var(--paper); }
+    .btn.blue { color: #fff; background: var(--blue); }
     .btn:disabled { opacity: .5; }
-    .row { display: flex; gap: 8px; margin-top: 14px; }
+    .row { display: flex; gap: 8px; margin-top: 12px; }
     .row .btn { flex: 1; }
-    .create { display: flex; gap: 8px; margin-top: 12px; }
-    .create input { flex: 1; min-width: 0; height: 42px; padding: 0 13px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--paper); font-size: 14px; }
-    .create input:focus { border-color: var(--mint-strong); }
-    .hint { margin: 8px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
-    .empty { padding: 26px 16px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.6; border: 1px dashed var(--line); border-radius: 18px; }
+    .field { width: 100%; height: 44px; padding: 0 13px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--paper); font-size: 14px; }
+    .field:focus { border-color: var(--mint-strong); }
+    .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .option { display: flex; flex-direction: column; gap: 3px; padding: 11px 12px; border: 1.5px solid var(--line); border-radius: 13px; background: var(--paper); text-align: left; cursor: pointer; }
+    .option b { font-size: 13px; }
+    .option small { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+    .option.selected { border-color: var(--mint-strong); background: var(--mint-soft); }
+    .details { margin-top: 12px; padding: 11px 12px; border-radius: 12px; background: var(--canvas); font-size: 12px; line-height: 1.7; }
+    .details b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+    .mesh-card { display: flex; align-items: center; gap: 13px; cursor: pointer; }
+    .mesh-icon { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; border-radius: 15px; color: #fff; background: linear-gradient(145deg, #4a7dff, #2a4fc0); }
+    .mesh-icon svg { width: 24px; height: 24px; }
+    .hint { margin: 8px 4px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .empty { padding: 22px 16px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.6; border: 1px dashed var(--line); border-radius: 18px; }
     .empty b { display: block; margin-bottom: 4px; color: var(--ink); font-size: 14px; }
-    .modal-bg { position: fixed; inset: 0; display: none; place-items: center; padding: 16px; background: rgba(10, 20, 16, .5); }
+    .modal-bg { position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: none; place-items: center; padding: 16px; background: rgba(10, 20, 16, .5); }
     .modal-bg.open { display: grid; }
     .modal { width: min(380px, 100%); padding: 20px; border-radius: 20px; background: var(--card); }
     .modal h3 { margin: 0 0 6px; font-size: 17px; }
     .modal p { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; }
-    .modal input { width: 100%; height: 42px; padding: 0 13px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--paper); font-size: 14px; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -68,31 +84,48 @@
   <div class="wrap">
     <header>
       <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 11h2v2H8zm6 0h2v2h-2z" fill="currentColor"/></svg></span>
-      <h1>Rooms</h1>
+      <h1>Hearth</h1>
       <button id="me" class="me" type="button"><span id="meInitials">?</span><b id="meName">You</b></button>
     </header>
 
-    <div id="noWifi" class="notice hidden"><span>⚠️</span><span class="grow">Connect this phone to Wi‑Fi to find rooms and host your own.</span></div>
+    <div id="error" class="notice hidden"><span>⚠️</span><span id="errorText" class="grow"></span><button id="errorClose" class="btn secondary" type="button">OK</button></div>
+    <div id="joining" class="notice mint hidden"><span class="spinner"></span><span id="joiningText" class="grow">Connecting…</span></div>
     <div id="rejoining" class="notice mint hidden"><span class="spinner"></span><span class="grow">Looking for the room you were in last time…</span><button id="stayHere" class="btn secondary" type="button">Stay here</button></div>
-    <div id="current" class="notice mint hidden"><span class="grow" id="currentText"></span><button id="backToRoom" class="btn" type="button">Back to room</button></div>
+    <div id="current" class="notice mint hidden"><span class="grow" id="currentText"></span><button id="backToRoom" class="btn" type="button">Open</button></div>
 
-    <h2>Your room</h2>
+    <h2><svg viewBox="0 0 24 24" fill="none"><path d="M3 9.5a13 13 0 0 1 18 0M6 13a8.5 8.5 0 0 1 12 0M9.2 16.4a4 4 0 0 1 5.6 0" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="19.3" r="1.3" fill="currentColor"/></svg><span id="joinTitle">Join a room</span></h2>
+    <div id="rooms"></div>
+
+    <h2><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Your room</h2>
     <div id="mine"></div>
 
-    <h2 id="nearbyTitle">Rooms on this Wi‑Fi</h2>
-    <div id="nearby"></div>
-    <p class="hint">Rooms appear here automatically. Joining is always your choice — when someone opens a new room you'll get a notification with a Join button.</p>
+    <h2><svg viewBox="0 0 24 24" fill="none"><path d="m7 7 10 10-5 4V3l5 4L7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>No Wi‑Fi at all?</h2>
+    <div id="meshCard" class="card mesh-card" role="button" tabindex="0">
+      <span class="mesh-icon"><svg viewBox="0 0 24 24" fill="none"><path d="m7 7 10 10-5 4V3l5 4L7 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div class="room-text"><div class="room-name">Bluetooth chat</div><div class="room-sub" id="meshSub">Chat with people nearby — messages hop phone to phone.</div></div>
+      <button class="btn blue" type="button">Open</button>
+    </div>
+    <p class="hint">Rooms on Wi‑Fi or a hotspot support everything: files, voice and video calls, group calls. Bluetooth chat works with no Wi‑Fi at all: messages, photos, voice notes and voice calls with people nearby.</p>
   </div>
 
   <div id="nameModal" class="modal-bg">
     <form id="nameForm" class="modal">
       <h3>Your name</h3>
-      <p>Shown to others in every room you join.</p>
-      <input id="nameInput" maxlength="48" autocomplete="nickname">
+      <p>Shown to others in every room and in Bluetooth chat.</p>
+      <input id="nameInput" class="field" maxlength="48" autocomplete="nickname">
       <div class="row"><button id="nameCancel" class="btn secondary" type="button">Cancel</button><button class="btn" type="submit">Save</button></div>
     </form>
   </div>
 
+  <script>
+    // Older Android System WebView (Android 10/11 phones that never updated it) lacks replaceChildren (Chrome 86+).
+    if (!Element.prototype.replaceChildren) {
+      Element.prototype.replaceChildren = function (...nodes) {
+        while (this.firstChild) this.removeChild(this.firstChild);
+        this.append(...nodes);
+      };
+    }
+  </script>
   <script>
     (() => {
       const bridge = window.HearthAndroid;
@@ -102,6 +135,8 @@
       let state = {};
       let lastRender = '';
       let draftName = '';
+      let useHotspot = null;
+      let errorText = '';
 
       function color(seed) {
         let hash = 0;
@@ -129,6 +164,9 @@
       function myName() {
         try { return bridge.getName() || state.owner || 'You'; } catch (_) { return state.owner || 'You'; }
       }
+      function typing() {
+        return document.activeElement && document.activeElement.tagName === 'INPUT';
+      }
       function roomCard(room) {
         const card = el('div', 'card');
         const row = el('div', 'room');
@@ -136,16 +174,22 @@
         avatar.style.background = color(room.id);
         const text = el('div', 'room-text');
         text.append(el('div', 'room-name', room.name));
-        const sub = el('div', 'room-sub', room.mine ? 'Hosted on this phone' : `by ${room.host || 'someone'}`);
+        const sub = el('div', 'room-sub');
+        if (room.type === 'hotspot') {
+          sub.append(el('span', 'tag hotspot', room.mine ? 'Your hotspot' : `Hotspot · via Bluetooth${room.hops > 1 ? ` (${room.hops} hops)` : ''}`));
+        } else {
+          sub.append(el('span', 'tag wifi', 'Wi‑Fi'));
+        }
+        sub.append(document.createTextNode(room.mine ? 'on this phone' : `by ${room.host || 'someone'}`));
         const details = info.get(room.id);
         if (details) {
-          sub.append(document.createTextNode(` · ${details.online} online`));
-          if (details.call && details.call.active) sub.append(el('span', 'live', `call · ${details.call.people}`));
+          sub.append(document.createTextNode(`· ${details.online} online`));
+          if (details.call && details.call.active) sub.append(el('span', 'tag live', `Call · ${details.call.people}`));
         }
         text.append(sub);
         row.append(avatar, text);
-        if (room.joined) row.append(el('span', 'badge', 'You’re here'));
-        else if (!room.mine) row.append(button('Join', '', () => bridge.joinRoom(room.id)));
+        if (room.joined) row.append(button('Open', '', () => bridge.backToRoom()));
+        else if (!room.mine) row.append(button('Join', room.type === 'hotspot' ? 'blue' : '', () => bridge.joinRoom(room.id)));
         card.append(row);
         return card;
       }
@@ -153,68 +197,108 @@
         const rooms = state.rooms || [];
         const mine = rooms.find(room => room.mine);
         const others = rooms.filter(room => !room.mine);
-        const key = JSON.stringify([state, [...info.entries()], myName()]);
+        const key = JSON.stringify([state, [...info.entries()], myName(), useHotspot, errorText]);
         if (key === lastRender) return;
         lastRender = key;
 
         $('meName').textContent = myName();
         $('meInitials').textContent = initials(myName());
-        $('noWifi').classList.toggle('hidden', state.wifi !== false);
-        $('rejoining').classList.toggle('hidden', !state.autoJoining);
+        $('error').classList.toggle('hidden', !errorText);
+        $('errorText').textContent = errorText;
+        $('joining').classList.toggle('hidden', !state.joining);
+        $('rejoining').classList.toggle('hidden', !state.autoJoining || !!state.joining);
         const joined = rooms.find(room => room.joined);
         $('current').classList.toggle('hidden', !joined);
         if (joined) $('currentText').textContent = `You're in “${joined.name}”.`;
+
+        $('joinTitle').textContent = others.length ? `Join a room (${others.length})` : 'Join a room';
+        const list = $('rooms');
+        if (!others.length) {
+          const empty = el('div', 'empty');
+          empty.append(el('b', '', 'No rooms nearby yet'));
+          empty.append(document.createTextNode(state.wifi === false
+            ? 'You are not on Wi‑Fi. Hotspot rooms from phones nearby appear here (Bluetooth finds them) — or create your own below.'
+            : 'Rooms on this Wi‑Fi and hotspot rooms nearby appear here automatically. Joining is always your choice.'));
+          list.replaceChildren(empty);
+        } else {
+          list.replaceChildren(...others.map(roomCard));
+        }
 
         const mineBox = $('mine');
         mineBox.replaceChildren();
         if (state.hosting && mine) {
           const card = roomCard(mine);
+          const hotspot = state.hotspot;
+          const details = el('div', 'details');
+          if (hotspot) {
+            details.append(document.createTextNode('Phones nearby see this room under “Join a room”. Laptops: connect to Wi‑Fi '));
+            details.append(el('b', '', hotspot.ssid));
+            details.append(document.createTextNode(' with password '));
+            details.append(el('b', '', hotspot.pass));
+            details.append(document.createTextNode(', then open '));
+            details.append(el('b', '', mine.secureUrl || mine.url));
+          } else {
+            details.append(document.createTextNode('Laptops on this Wi‑Fi can open '));
+            details.append(el('b', '', mine.secureUrl || mine.url));
+            details.append(document.createTextNode(' in a browser.'));
+          }
+          card.append(details);
           const actions = el('div', 'row');
           if (!mine.joined) actions.append(button('Open my room', '', () => bridge.joinRoom(mine.id)));
-          actions.append(button('Stop hosting', 'danger', () => {
+          actions.append(button('Close room', 'danger', () => {
             if (confirm(`Close “${mine.name}”? Everyone in it will be disconnected. Its chat history stays on this phone.`)) bridge.stopHosting();
           }));
           card.append(actions);
-          const hint = el('p', 'hint', `Laptops on this Wi‑Fi can open ${mine.secureUrl || mine.url} in a browser.`);
-          card.append(hint);
           mineBox.append(card);
         } else {
+          if (useHotspot === null) useHotspot = state.wifi === false;
           const card = el('div', 'card');
           card.append(el('div', 'room-name', 'Create your own room'));
-          card.append(el('div', 'room-sub', 'This phone hosts it. Others on the Wi‑Fi can choose to join.'));
-          const form = el('form', 'create');
-          const input = el('input');
+          const form = el('form');
+          const input = el('input', 'field');
           input.placeholder = `${myName()}'s room`;
           input.maxLength = 40;
           input.value = draftName;
+          input.style.marginTop = '10px';
           input.addEventListener('input', () => { draftName = input.value; });
-          const create = el('button', 'btn', 'Create');
+          const choice = el('div', 'choice');
+          const wifiOption = el('button', `option${useHotspot ? '' : ' selected'}`);
+          wifiOption.type = 'button';
+          wifiOption.append(el('b', '', 'This Wi‑Fi'), el('small', '', state.wifi === false ? 'Not connected to Wi‑Fi' : 'Everyone on the same Wi‑Fi can join'));
+          wifiOption.disabled = state.wifi === false;
+          wifiOption.addEventListener('click', () => { useHotspot = false; lastRender = ''; render(); });
+          const hotspotOption = el('button', `option${useHotspot ? ' selected' : ''}`);
+          hotspotOption.type = 'button';
+          hotspotOption.append(el('b', '', 'My hotspot'), el('small', '', 'No router or internet needed · about 30–100 m'));
+          hotspotOption.addEventListener('click', () => { useHotspot = true; lastRender = ''; render(); });
+          choice.append(wifiOption, hotspotOption);
+          const create = el('button', 'btn', useHotspot ? 'Create hotspot room' : 'Create room');
           create.type = 'submit';
-          create.disabled = state.wifi === false;
-          form.append(input, create);
+          create.style.width = '100%';
+          create.style.marginTop = '12px';
+          create.disabled = !!state.joining || (!useHotspot && state.wifi === false);
+          form.append(input, choice, create);
           form.addEventListener('submit', event => {
             event.preventDefault();
             create.disabled = true;
-            bridge.createRoom(input.value.trim());
+            errorText = '';
+            bridge.createRoom(input.value.trim(), !!useHotspot);
             draftName = '';
           });
           card.append(form);
           mineBox.append(card);
         }
 
-        const nearby = $('nearby');
-        $('nearbyTitle').textContent = others.length ? `Rooms on this Wi‑Fi (${others.length})` : 'Rooms on this Wi‑Fi';
-        if (!others.length) {
-          const empty = el('div', 'empty');
-          empty.append(el('b', '', 'No other rooms yet'));
-          empty.append(document.createTextNode('Create your own above, or ask someone on this Wi‑Fi to open Hearth and create one.'));
-          nearby.replaceChildren(empty);
-        } else {
-          nearby.replaceChildren(...others.map(roomCard));
-        }
+        const mesh = state.mesh || {};
+        let meshText = 'Chat with people nearby — messages hop phone to phone.';
+        if (mesh.permission === false) meshText = 'Tap to turn on (needs Bluetooth permission).';
+        else if (mesh.running) meshText = `${mesh.longRange ? 'On · long range' : 'On'} · ${mesh.peers || 0} nearby`;
+        else if (mesh.status) meshText = mesh.status;
+        $('meshSub').textContent = meshText;
       }
       async function refreshInfo() {
         for (const room of state.rooms || []) {
+          if (room.type === 'hotspot' && !room.mine && !room.joined) continue;
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), 2000);
           try {
@@ -223,11 +307,18 @@
           } catch (_) {}
           clearTimeout(timer);
         }
-        if (!(document.activeElement && document.activeElement.tagName === 'INPUT')) render();
+        if (!typing()) render();
+      }
+      function describeError(code) {
+        if (code === 'permission-hotspot') return 'Hotspot rooms need the “Nearby devices” (or Location) permission. Allow it and try again.';
+        return code;
       }
       function tick() {
         if (!bridge) return;
-        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+        let fresh = '';
+        try { fresh = bridge.takeError() || ''; } catch (_) {}
+        if (fresh) errorText = describeError(fresh);
+        if (typing()) return;
         state = read();
         render();
       }
@@ -246,8 +337,10 @@
         lastRender = '';
         tick();
       });
+      $('errorClose').addEventListener('click', () => { errorText = ''; lastRender = ''; render(); });
       $('stayHere').addEventListener('click', () => bridge.cancelAutoJoin());
       $('backToRoom').addEventListener('click', () => bridge.backToRoom());
+      $('meshCard').addEventListener('click', () => bridge.openMesh());
 
       if (!bridge) {
         document.querySelector('.wrap').append(el('p', 'hint', 'Open this screen inside the Hearth Chat app.'));

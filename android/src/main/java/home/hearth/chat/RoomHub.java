@@ -64,6 +64,8 @@ final class RoomHub {
         void relaySignal(JSONObject body);
 
         void postCallLog(JSONObject call, String text);
+
+        boolean authorize(String device, String key);
     }
 
     private final Host host;
@@ -90,6 +92,7 @@ final class RoomHub {
         volatile boolean open = true;
         volatile String device = "";
         volatile String name = "Someone";
+        volatile boolean verified;
 
         Conn(Socket socket, OutputStream out) {
             this.socket = socket;
@@ -309,9 +312,18 @@ final class RoomHub {
         byte[] frame = textFrame(value);
         boolean sent = false;
         for (Conn conn : conns) {
-            if (device.equals(conn.device)) sent |= enqueue(conn, frame, Long.MAX_VALUE);
+            if (conn.verified && device.equals(conn.device)) sent |= enqueue(conn, frame, Long.MAX_VALUE);
         }
         return sent;
+    }
+
+    /** Private messages: only connections that proved they are this device. */
+    void sendToVerified(String device, JSONObject value) {
+        if (device == null || device.isEmpty()) return;
+        byte[] frame = textFrame(value);
+        for (Conn conn : conns) {
+            if (conn.verified && device.equals(conn.device)) enqueue(conn, frame, Long.MAX_VALUE);
+        }
     }
 
     int connectionCount() {
@@ -367,7 +379,10 @@ final class RoomHub {
         switch (type) {
             case "hello":
             case "presence": {
-                conn.device = LanServer.clean(message.optString("device", conn.device), 80);
+                String device = LanServer.clean(message.optString("device", conn.device), 80);
+                if (!device.equals(conn.device)) conn.verified = false;
+                conn.device = device;
+                if (message.has("key")) conn.verified = host.authorize(device, message.optString("key"));
                 conn.name = LanServer.clean(message.optString("name", conn.name), 48);
                 if (conn.name.isEmpty()) conn.name = "Someone";
                 if (!conn.device.isEmpty()) {

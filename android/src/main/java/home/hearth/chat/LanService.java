@@ -26,6 +26,14 @@ public final class LanService extends Service {
     private static final String ROOMS_CHANNEL_ID = "hearth_new_rooms";
     private static final int NOTIFICATION_ID = 8787;
     private RoomDiscovery discovery;
+    private BleMesh mesh;
+    private static volatile MeshCall meshCall;
+    static final String EXTRA_SHOW_MESH = "show_mesh";
+    private static final String MESH_CHANNEL_ID = "hearth_mesh";
+
+    static MeshCall meshCall() {
+        return meshCall;
+    }
     private String status = "Finding Hearth Chat rooms on Wi-Fi…";
 
     @Override
@@ -44,6 +52,50 @@ public final class LanService extends Service {
             }
         });
         discovery.start();
+        mesh = new BleMesh(getApplicationContext());
+        meshCall = new MeshCall(getApplicationContext(), mesh);
+        mesh.setBackgroundListener(this::onMeshInBackground);
+        meshCall.setBackgroundListener(this::onMeshInBackground);
+        mesh.start();
+    }
+
+    /** Bluetooth events while the Bluetooth chat screen is closed: notify about private messages and incoming calls. */
+    private void onMeshInBackground(org.json.JSONObject event) {
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        String title = null;
+        String text = null;
+        int id = 9500;
+        if ("call".equals(event.optString("type")) && "incoming".equals(event.optString("state"))) {
+            title = "Incoming Bluetooth call";
+            text = event.optString("name", "Someone") + " is calling over Bluetooth";
+            id = 9501;
+        } else if ("call".equals(event.optString("type")) && "ended".equals(event.optString("state"))) {
+            manager.cancel(9501);
+            return;
+        } else if ("message".equals(event.optString("type"))) {
+            org.json.JSONObject message = event.optJSONObject("message");
+            if (message == null || !message.optBoolean("private")) return;
+            title = message.optString("name", "Someone") + " · Bluetooth";
+            String kind = message.optString("kind");
+            text = "text".equals(kind) ? message.optString("text") : "voice".equals(kind) ? "Voice message" : "Sent a file";
+            id = 9502;
+        }
+        if (title == null) return;
+        Intent open = new Intent(this, MainActivity.class).putExtra(EXTRA_SHOW_MESH, true)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent pending = PendingIntent.getActivity(this, id, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? new Notification.Builder(this, MESH_CHANNEL_ID)
+                : new Notification.Builder(this);
+        builder.setSmallIcon(R.drawable.ic_home)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setContentIntent(pending)
+                .setAutoCancel(true)
+                .setCategory(id == 9501 ? Notification.CATEGORY_CALL : Notification.CATEGORY_MESSAGE);
+        if (id == 9501) builder.setFullScreenIntent(pending, true);
+        manager.notify(id, builder.build());
     }
 
     @Override
@@ -59,6 +111,8 @@ public final class LanService extends Service {
     @Override
     public void onDestroy() {
         if (discovery != null) discovery.stop();
+        if (meshCall != null) meshCall.hangup();
+        if (mesh != null) mesh.stop();
         super.onDestroy();
     }
 
@@ -74,6 +128,10 @@ public final class LanService extends Service {
                     ROOMS_CHANNEL_ID, "New rooms nearby", NotificationManager.IMPORTANCE_HIGH);
             rooms.setDescription("Tells you when someone opens a new Hearth room on your Wi-Fi.");
             manager.createNotificationChannel(rooms);
+            NotificationChannel meshChannel = new NotificationChannel(
+                    MESH_CHANNEL_ID, "Bluetooth messages and calls", NotificationManager.IMPORTANCE_HIGH);
+            meshChannel.setDescription("Private messages and calls that arrive over the Bluetooth mesh.");
+            manager.createNotificationChannel(meshChannel);
         }
     }
 

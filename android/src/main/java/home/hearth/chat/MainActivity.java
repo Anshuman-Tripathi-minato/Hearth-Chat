@@ -46,6 +46,13 @@ public final class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private int loadAttempts;
     private static final String LOBBY_URL = "file:///android_asset/lobby.html";
+    private static final String MESH_URL = "file:///android_asset/mesh.html";
+    private static final int FEATURE_PERMISSION_REQUEST = 46;
+    private Runnable afterPermission;
+    private String permissionDeniedMessage = "";
+    private android.media.MediaRecorder noteRecorder;
+    private java.io.File noteFile;
+    private long noteStartedAt;
     private String loadedRoomUrl = null;
     private volatile boolean onLobby;
     private ValueCallback<Uri[]> uploadCallback;
@@ -98,11 +105,15 @@ public final class MainActivity extends Activity {
         }
 
         webView = new WebView(this);
-        webView.setBackgroundColor(0xFFF4F7F4);
+        boolean darkMode = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        webView.setBackgroundColor(darkMode ? 0xFF0F1A17 : 0xFFF4F7F4);
+        webView.setOverScrollMode(android.view.View.OVER_SCROLL_NEVER);
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
                 onLobby = url != null && url.startsWith("file:///android_asset/");
+                attachMeshEvents(url != null && url.startsWith(MESH_URL));
             }
 
             @Override
@@ -175,7 +186,7 @@ public final class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(false);
         webView.addJavascriptInterface(new CallBridge(), "HearthAndroid");
-        setContentView(webView);
+        setContentView(wrapWithSystemBarInsets(webView));
         handler.post(roomUrlWatcher);
         handleIntent(getIntent());
     }
@@ -202,7 +213,43 @@ public final class MainActivity extends Activity {
         } else if (intent.getBooleanExtra(LanService.EXTRA_SHOW_ROOMS, false)) {
             intent.removeExtra(LanService.EXTRA_SHOW_ROOMS);
             handler.postDelayed(this::showLobby, 300);
+        } else if (intent.getBooleanExtra(LanService.EXTRA_SHOW_MESH, false)) {
+            intent.removeExtra(LanService.EXTRA_SHOW_MESH);
+            handler.postDelayed(this::showMesh, 300);
         }
+    }
+
+    private void showMesh() {
+        if (webView == null) return;
+        onLobby = true;
+        webView.loadUrl(MESH_URL);
+    }
+
+    /** Streams Bluetooth mesh and call events into the Bluetooth chat page while it is open. */
+    private void attachMeshEvents(boolean attach) {
+        BleMesh mesh = BleMesh.current();
+        MeshCall call = LanService.meshCall();
+        if (mesh != null) mesh.setListener(attach ? this::pushMeshEvent : null);
+        if (call != null) call.setListener(attach ? this::pushMeshEvent : null);
+    }
+
+    private void pushMeshEvent(org.json.JSONObject event) {
+        String script = "window.meshEvent && window.meshEvent(" + event + ")";
+        runOnUiThread(() -> {
+            if (webView != null) webView.evaluateJavascript(script, null);
+        });
+    }
+
+    /** Asks for the given runtime permissions, then runs the action if they were granted. */
+    private void withPermissions(String[] wanted, String deniedMessage, Runnable action) {
+        String[] missing = MeshPermissions.missing(this, wanted);
+        if (missing.length == 0) {
+            action.run();
+            return;
+        }
+        afterPermission = action;
+        permissionDeniedMessage = deniedMessage;
+        requestPermissions(missing, FEATURE_PERMISSION_REQUEST);
     }
 
     private void joinWhenReady(String id, int attempt) {
@@ -214,11 +261,86 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void showLobbyForced() {
+        if (webView == null) return;
+        onLobby = true;
+        webView.loadUrl(LOBBY_URL);
+    }
+
     private void showLobby() {
         if (webView != null && !onLobby) {
             onLobby = true;
             webView.loadUrl(LOBBY_URL);
         }
+    }
+
+    /**
+     * Keeps the page clear of the status bar, navigation bar, camera cutout and keyboard. Android 15 draws apps
+     * edge to edge, so without this the room header sits underneath the clock and battery icons.
+     */
+    private android.view.View wrapWithSystemBarInsets(WebView page) {
+        boolean dark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        int barColor = dark ? 0xFF121E1A : 0xFFFFFFFF;
+        android.widget.FrameLayout root = new android.widget.FrameLayout(this);
+        root.setBackgroundColor(barColor);
+        root.addView(page, new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+        android.view.Window window = getWindow();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false);
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
+            root.setOnApplyWindowInsetsListener((view, insets) -> {
+                android.graphics.Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars()
+                        | android.view.WindowInsets.Type.displayCutout());
+                android.graphics.Insets keyboard = insets.getInsets(android.view.WindowInsets.Type.ime());
+                view.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, keyboard.bottom));
+                return android.view.WindowInsets.CONSUMED;
+            });
+            // Android 11 crashes in getInsetsController() until the decor view exists; getDecorView() creates it.
+            window.getDecorView();
+            android.view.WindowInsetsController controller = window.getInsetsController();
+            if (controller != null) {
+                int light = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                controller.setSystemBarsAppearance(dark ? 0 : light, light);
+            }
+        } else {
+            // Older Android keeps the page below the bars by itself; just match the bar colours and resize for the keyboard.
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            window.setStatusBarColor(barColor);
+            window.setNavigationBarColor(barColor);
+            if (!dark) {
+                int flags = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                window.getDecorView().setSystemUiVisibility(flags);
+            }
+        }
+        if (Build.VERSION.SDK_INT < 35) {
+            window.setStatusBarColor(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ? android.graphics.Color.TRANSPARENT : barColor);
+            window.setNavigationBarColor(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ? android.graphics.Color.TRANSPARENT : barColor);
+        }
+        return root;
+    }
+
+    private boolean stopNote(boolean discard) {
+        boolean ok = true;
+        if (noteRecorder != null) {
+            try {
+                noteRecorder.stop();
+            } catch (Exception e) {
+                ok = false;
+            }
+            noteRecorder.release();
+            noteRecorder = null;
+        }
+        if (discard && noteFile != null) noteFile.delete();
+        return ok;
+    }
+
+    private static String[] concat(String[] first, String[] second) {
+        java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(java.util.Arrays.asList(first));
+        all.addAll(java.util.Arrays.asList(second));
+        return all.toArray(new String[0]);
     }
 
     private String currentRoomId() {
@@ -296,13 +418,237 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface
         public void createRoom(String name) {
+            createRoom(name, false);
+        }
+
+        @JavascriptInterface
+        public void createRoom(String name, boolean useHotspot) {
             if (!onLobby) return;
             runOnUiThread(() -> {
-                RoomDiscovery directory = RoomDiscovery.current();
-                if (directory != null) directory.createRoom(name);
-                loadedRoomUrl = null;
+                Runnable create = () -> {
+                    RoomDiscovery directory = RoomDiscovery.current();
+                    if (directory != null) directory.createRoom(name, useHotspot);
+                    loadedRoomUrl = null;
+                };
+                if (useHotspot) {
+                    String[] wanted = concat(MeshPermissions.hotspot(), MeshPermissions.bluetooth());
+                    withPermissions(wanted, "Hotspot rooms need the Nearby devices / Location permission.", create);
+                } else {
+                    create.run();
+                }
             });
         }
+
+        @JavascriptInterface
+        public String takeError() {
+            RoomDiscovery directory = RoomDiscovery.current();
+            return directory == null ? "" : directory.takeError();
+        }
+
+        @JavascriptInterface
+        public void openMesh() {
+            runOnUiThread(MainActivity.this::showMesh);
+        }
+
+        /* ---------- Bluetooth mesh (only the app's own pages may use these) ---------- */
+
+        @JavascriptInterface
+        public String meshState() {
+            BleMesh mesh = BleMesh.current();
+            if (!onLobby || mesh == null) return "{}";
+            org.json.JSONObject state = mesh.state();
+            try {
+                MeshCall call = LanService.meshCall();
+                if (call != null) state.put("call", call.snapshot());
+                state.put("locationOff", MeshPermissions.locationNeededAndOff(MainActivity.this));
+            } catch (org.json.JSONException ignored) {
+            }
+            return state.toString();
+        }
+
+        @JavascriptInterface
+        public String meshMessages() {
+            BleMesh mesh = BleMesh.current();
+            return !onLobby || mesh == null ? "[]" : mesh.messages().toString();
+        }
+
+        @JavascriptInterface
+        public String meshSend(String json) {
+            BleMesh mesh = BleMesh.current();
+            if (!onLobby || mesh == null) return "{\"error\":\"Bluetooth is not ready\"}";
+            try {
+                return mesh.send(new org.json.JSONObject(json)).toString();
+            } catch (org.json.JSONException e) {
+                return "{\"error\":\"Invalid message\"}";
+            }
+        }
+
+        @JavascriptInterface
+        public void meshEnable() {
+            if (!onLobby) return;
+            runOnUiThread(() -> withPermissions(MeshPermissions.bluetooth(),
+                    "Bluetooth chat needs the Nearby devices permission.", () -> {
+                        BleMesh mesh = BleMesh.current();
+                        if (mesh != null) mesh.restart();
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            android.bluetooth.BluetoothManager manager = (android.bluetooth.BluetoothManager) getSystemService(BLUETOOTH_SERVICE);
+                            if (manager != null && manager.getAdapter() != null && !manager.getAdapter().isEnabled()) {
+                                try {
+                                    startActivity(new Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE));
+                                } catch (Exception ignored) {
+                                }
+                            }
+                        }
+                    }));
+        }
+
+        @JavascriptInterface
+        public void openLocationSettings() {
+            runOnUiThread(() -> {
+                try {
+                    startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                } catch (Exception ignored) {
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String meshCall(String peerId, String name) {
+            MeshCall call = LanService.meshCall();
+            if (!onLobby || call == null) return "Bluetooth is not ready.";
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                runOnUiThread(() -> withPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
+                        "Calls need microphone access.", () -> call.call(peerId, name)));
+                return "";
+            }
+            return call.call(peerId, name);
+        }
+
+        @JavascriptInterface
+        public void meshAnswer(boolean accept) {
+            MeshCall call = LanService.meshCall();
+            if (!onLobby || call == null) return;
+            if (accept && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                runOnUiThread(() -> withPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
+                        "Calls need microphone access.", () -> call.answer(true)));
+                return;
+            }
+            call.answer(accept);
+        }
+
+        @JavascriptInterface
+        public void meshHangup() {
+            MeshCall call = LanService.meshCall();
+            if (onLobby && call != null) call.hangup();
+        }
+
+        @JavascriptInterface
+        public void meshMute(boolean muted) {
+            MeshCall call = LanService.meshCall();
+            if (onLobby && call != null) call.setMuted(muted);
+        }
+
+        @JavascriptInterface
+        public void meshSpeaker(boolean on) {
+            MeshCall call = LanService.meshCall();
+            if (onLobby && call != null) call.setSpeaker(on);
+        }
+
+        /** Saves a file received over Bluetooth into the phone's Downloads folder. */
+        @JavascriptInterface
+        public String meshSaveFile(String name, String type, String data) {
+            if (!onLobby) return "Not available here.";
+            try {
+                byte[] bytes = android.util.Base64.decode(data, android.util.Base64.NO_WRAP);
+                String safe = (name == null || name.trim().isEmpty() ? "hearth-file" : name).replaceAll("[\\\\/:*?\"<>|]", "_");
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    android.content.ContentValues values = new android.content.ContentValues();
+                    values.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, safe);
+                    values.put(android.provider.MediaStore.Downloads.MIME_TYPE, type == null || type.isEmpty() ? "application/octet-stream" : type);
+                    values.put(android.provider.MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                    Uri uri = getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                    if (uri == null) return "Could not save the file.";
+                    try (java.io.OutputStream out = getContentResolver().openOutputStream(uri)) {
+                        if (out == null) return "Could not save the file.";
+                        out.write(bytes);
+                    }
+                } else {
+                    if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                        runOnUiThread(() -> withPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                                "Saving files needs storage permission.", () -> { }));
+                        return "Allow storage access, then tap Save again.";
+                    }
+                    java.io.File folder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                    folder.mkdirs();
+                    try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(folder, safe))) {
+                        out.write(bytes);
+                    }
+                }
+                return "";
+            } catch (Exception e) {
+                return "Could not save the file.";
+            }
+        }
+
+        /** Voice notes for the Bluetooth chat: small AAC recordings (about 3 KB per second). */
+        @JavascriptInterface
+        public String noteStart() {
+            if (!onLobby) return "Not available here.";
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                runOnUiThread(() -> withPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
+                        "Voice messages need microphone access.", () -> { }));
+                return "permission";
+            }
+            synchronized (MainActivity.this) {
+                stopNote(true);
+                try {
+                    noteFile = new java.io.File(getCacheDir(), "voice-note.m4a");
+                    noteRecorder = new android.media.MediaRecorder();
+                    noteRecorder.setAudioSource(android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION);
+                    noteRecorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4);
+                    noteRecorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC);
+                    noteRecorder.setAudioChannels(1);
+                    noteRecorder.setAudioSamplingRate(16000);
+                    noteRecorder.setAudioEncodingBitRate(24000);
+                    noteRecorder.setMaxDuration(60_000);
+                    noteRecorder.setOutputFile(noteFile.getAbsolutePath());
+                    noteRecorder.prepare();
+                    noteRecorder.start();
+                    noteStartedAt = System.currentTimeMillis();
+                    return "";
+                } catch (Exception e) {
+                    stopNote(true);
+                    return "Could not start recording.";
+                }
+            }
+        }
+
+        @JavascriptInterface
+        public String noteStop(boolean discard) {
+            synchronized (MainActivity.this) {
+                long duration = (System.currentTimeMillis() - noteStartedAt) / 1000;
+                boolean ok = stopNote(false);
+                org.json.JSONObject result = new org.json.JSONObject();
+                try {
+                    if (discard || !ok || noteFile == null || !noteFile.isFile()) {
+                        result.put("error", discard ? "" : "Recording failed.");
+                        return result.toString();
+                    }
+                    byte[] data = java.nio.file.Files.readAllBytes(noteFile.toPath());
+                    noteFile.delete();
+                    result.put("data", android.util.Base64.encodeToString(data, android.util.Base64.NO_WRAP));
+                    result.put("type", "audio/mp4");
+                    result.put("duration", Math.max(1, Math.min(60, duration)));
+                } catch (Exception e) {
+                    try {
+                        result.put("error", "Recording failed.");
+                    } catch (org.json.JSONException ignored) {
+                    }
+                }
+                return result.toString();
+            }
+        }
+
 
         @JavascriptInterface
         public void stopHosting() {
@@ -341,7 +687,8 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getName() {
-            return getSharedPreferences(LanService.PREFS_NAME, MODE_PRIVATE).getString(LanService.KEY_USER_NAME, "");
+            String name = getSharedPreferences(LanService.PREFS_NAME, MODE_PRIVATE).getString(LanService.KEY_USER_NAME, "");
+            return name.isEmpty() ? RoomDiscovery.deviceName(MainActivity.this) : name;
         }
 
         @JavascriptInterface
@@ -471,6 +818,15 @@ public final class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == FEATURE_PERMISSION_REQUEST) {
+            Runnable action = afterPermission;
+            afterPermission = null;
+            boolean allGranted = grantResults.length > 0;
+            for (int result : grantResults) allGranted &= result == PackageManager.PERMISSION_GRANTED;
+            if (allGranted && action != null) action.run();
+            else if (!allGranted) Toast.makeText(this, permissionDeniedMessage, Toast.LENGTH_LONG).show();
+            return;
+        }
         if (requestCode == MEDIA_PERMISSION_REQUEST && pendingPermission != null) {
             PermissionRequest request = pendingPermission;
             pendingPermission = null;
@@ -515,12 +871,20 @@ public final class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (onLobby && !getRoomUrl().isEmpty()) {
+        if (webView != null && webView.getUrl() != null && webView.getUrl().startsWith(MESH_URL)) {
+            // Back from the Bluetooth chat: let it close its own screens first, then return to the rooms list.
+            webView.evaluateJavascript("window.hearthBack ? String(window.hearthBack()) : 'false'", result -> {
+                if (!"\"true\"".equals(result)) showLobbyForced();
+            });
+        } else if (onLobby && !getRoomUrl().isEmpty()) {
             // Back from the room list returns to the room you are in.
             loadedRoomUrl = null;
         } else if (!onLobby) {
-            // Keep the room (and any call) running instead of closing it.
-            moveTaskToBack(true);
+            // The room page closes menus or returns from a chat to the chat list first;
+            // otherwise keep the room (and any call) running instead of closing it.
+            webView.evaluateJavascript("window.hearthBack ? String(window.hearthBack()) : 'false'", result -> {
+                if (!"\"true\"".equals(result)) moveTaskToBack(true);
+            });
         } else {
             super.onBackPressed();
         }

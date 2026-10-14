@@ -24,6 +24,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -65,6 +66,8 @@ final class LanServer {
     private long nextSignal = 1;
     private final RoomInfo roomInfo;
     private final RoomHub hub;
+    private final File devicesFile;
+    private final Map<String, String> deviceKeys = new HashMap<>();
 
     /** Who this room is, and which other rooms the host phone can see on the Wi-Fi. */
     interface RoomInfo {
@@ -73,6 +76,9 @@ final class LanServer {
         String name();
 
         JSONArray otherRooms();
+
+        /** This phone's address for the room (its hotspot address when hosting on its own hotspot). */
+        String address();
     }
 
     LanServer(Context context, RoomInfo roomInfo) {
@@ -81,8 +87,10 @@ final class LanServer {
         File store = this.context.getFilesDir();
         mediaDirectory = new File(store, "media");
         messagesFile = new File(store, "messages.json");
+        devicesFile = new File(store, "devices.json");
         mediaDirectory.mkdirs();
         loadMessages();
+        loadDeviceKeys();
         hub = new RoomHub(new HubHost(), clients);
     }
 
@@ -135,6 +143,64 @@ final class LanServer {
 
         @Override public void postCallLog(JSONObject call, String text) {
             postSystemCall(call, text);
+        }
+
+        @Override public boolean authorize(String device, String key) {
+            return LanServer.this.authorize(device, key);
+        }
+    }
+
+    /**
+     * Each device proves who it is with a secret it generated itself; the first key seen for a device id is kept.
+     * Private messages are only shown to devices that present the matching key, so nobody can read someone else's
+     * private chats by reusing their device id.
+     */
+    boolean authorize(String device, String key) {
+        if (device == null || device.isEmpty() || key == null || key.length() < 16) return false;
+        synchronized (deviceKeys) {
+            String known = deviceKeys.get(device);
+            if (known == null) {
+                deviceKeys.put(device, key);
+                persistDeviceKeys();
+                return true;
+            }
+            return MessageDigest.isEqual(known.getBytes(StandardCharsets.UTF_8), key.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    /** A device that registered a key must always use it; older clients without keys may still post publicly. */
+    private boolean mayActAs(String device, String key) {
+        if (key != null && !key.isEmpty()) return authorize(device, key);
+        synchronized (deviceKeys) {
+            return !deviceKeys.containsKey(device);
+        }
+    }
+
+    private static boolean canSee(JSONObject message, String device, boolean verified) {
+        String to = message.optString("to", "");
+        if (to.isEmpty()) return true;
+        return verified && (device.equals(to) || device.equals(message.optString("sender")));
+    }
+
+    private void loadDeviceKeys() {
+        if (!devicesFile.isFile()) return;
+        try (FileInputStream in = new FileInputStream(devicesFile)) {
+            JSONObject saved = new JSONObject(new String(readAll(in), StandardCharsets.UTF_8));
+            Iterator<String> names = saved.keys();
+            while (names.hasNext()) {
+                String device = names.next();
+                deviceKeys.put(device, saved.optString(device));
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not read device keys", e);
+        }
+    }
+
+    private void persistDeviceKeys() {
+        try (FileOutputStream out = new FileOutputStream(devicesFile)) {
+            out.write(new JSONObject(deviceKeys).toString().getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            Log.w(TAG, "Could not save device keys", e);
         }
     }
 
@@ -243,7 +309,13 @@ final class LanServer {
                 push.put("t", "msg");
                 push.put("message", new JSONObject(json));
             }
-            hub.broadcast(push);
+            String to = message.optString("to", "");
+            if (to.isEmpty()) {
+                hub.broadcast(push);
+            } else {
+                hub.sendToVerified(to, push);
+                hub.sendToVerified(message.optString("sender"), push);
+            }
         } catch (JSONException ignored) {
         }
     }
@@ -395,7 +467,8 @@ final class LanServer {
             return;
         }
         if ("/api/info".equals(path)) {
-            String ip = getWifiAddress(context);
+            String ip = roomInfo != null && roomInfo.address() != null && !roomInfo.address().isEmpty()
+                    ? roomInfo.address() : getWifiAddress(context);
             JSONObject info = new JSONObject();
             try {
                 info.put("ip", ip);
@@ -413,10 +486,13 @@ final class LanServer {
             return;
         }
         if ("/api/messages".equals(path)) {
-            long after = parseLong(query(rawQuery).get("after"), 0);
+            Map<String, String> params = query(rawQuery);
+            long after = parseLong(params.get("after"), 0);
+            String device = clean(params.getOrDefault("device", ""), 80);
+            boolean verified = authorize(device, params.get("key"));
             byte[] page;
             synchronized (dataLock) {
-                page = messagesAfter(after).toString().getBytes(StandardCharsets.UTF_8);
+                page = messagesAfter(after, device, verified).toString().getBytes(StandardCharsets.UTF_8);
             }
             respond(output, 200, "OK", "application/json; charset=utf-8", page, headOnly);
             return;
@@ -452,8 +528,14 @@ final class LanServer {
             String text = clean(value.optString("text", ""), Integer.MAX_VALUE);
             long createdAt = value.optLong("createdAt", System.currentTimeMillis());
             boolean isCall = "call".equals(value.optString("kind"));
+            String to = clean(value.optString("to", ""), 80);
+            String key = value.optString("key", "");
             if (id.isEmpty() || sender.isEmpty() || text.trim().isEmpty()) {
                 respond(output, 400, "Bad Request", "application/json", jsonError("Add a message first"));
+                return;
+            }
+            if (!mayActAs(sender, key) || (!to.isEmpty() && !authorize(sender, key))) {
+                respond(output, 403, "Forbidden", "application/json", jsonError("This device could not be verified. Reload the page."));
                 return;
             }
             JSONObject saved = new JSONObject();
@@ -467,6 +549,7 @@ final class LanServer {
                     saved.put("text", text);
                     saved.put("createdAt", createdAt);
                     saved.put("kind", isCall ? "call" : "text");
+                    if (!to.isEmpty()) saved.put("to", to);
                     if (isCall) saved.put("call", cleanCall(value.optJSONObject("call")));
                     JSONObject reply = cleanReply(value.optJSONObject("replyTo"));
                     if (reply != null) saved.put("replyTo", reply);
@@ -502,12 +585,19 @@ final class LanServer {
             throw e;
         }
         String sender = clean(params.getOrDefault("sender", ""), 80);
+        String to = clean(params.getOrDefault("to", ""), 80);
+        String key = params.getOrDefault("key", "");
         String senderName = clean(params.getOrDefault("senderName", "Someone"), 48);
         String caption = clean(params.getOrDefault("caption", ""), 1000);
         if (originalName.isEmpty()) originalName = "File" + extension;
         if (sender.isEmpty()) {
             target.delete();
             respond(output, 400, "Bad Request", "application/json", jsonError("Device name is missing"));
+            return;
+        }
+        if (!mayActAs(sender, key) || (!to.isEmpty() && !authorize(sender, key))) {
+            target.delete();
+            respond(output, 403, "Forbidden", "application/json", jsonError("This device could not be verified. Reload the page."));
             return;
         }
         try {
@@ -523,6 +613,7 @@ final class LanServer {
                 saved.put("mediaName", originalName);
                 saved.put("mediaType", contentType);
                 saved.put("mediaBytes", length);
+                if (!to.isEmpty()) saved.put("to", to);
                 if ("1".equals(params.get("voice")) && contentType.startsWith("audio/")) {
                     saved.put("voice", true);
                     saved.put("duration", Math.max(0, Math.min(3600, parseLong(params.get("duration"), 0))));
@@ -582,6 +673,8 @@ final class LanServer {
         JSONObject result = new JSONObject();
         JSONArray online = new JSONArray();
         JSONArray inbox = new JSONArray();
+        // Call signals are private to the device they are addressed to.
+        if (!mayActAs(device, params.get("key"))) device = "";
         long last = after;
         updatePeer(device, clean(params.getOrDefault("name", "Someone"), 48),
                 "1".equals(params.get("typing")), "1".equals(params.get("busy")));
@@ -630,11 +723,17 @@ final class LanServer {
             respond(output, 400, "Bad Request", "application/json", jsonError("Missing reaction"));
             return;
         }
+        String key = body.optString("key", "");
+        if (!mayActAs(device, key)) {
+            respond(output, 403, "Forbidden", "application/json", jsonError("This device could not be verified. Reload the page."));
+            return;
+        }
+        boolean verified = !key.isEmpty();
         try {
             JSONObject saved;
             synchronized (dataLock) {
                 saved = findMessage(id);
-                if (saved == null || saved.optBoolean("deleted")) {
+                if (saved == null || saved.optBoolean("deleted") || !canSee(saved, device, verified)) {
                     respond(output, 404, "Not Found", "application/json", jsonError("Message not found"));
                     return;
                 }
@@ -673,6 +772,10 @@ final class LanServer {
     private void handleDelete(JSONObject body, OutputStream output) throws IOException {
         String id = clean(body.optString("id", ""), 80);
         String device = clean(body.optString("device", ""), 80);
+        if (!mayActAs(device, body.optString("key", ""))) {
+            respond(output, 403, "Forbidden", "application/json", jsonError("This device could not be verified. Reload the page."));
+            return;
+        }
         try {
             JSONObject saved;
             String mediaUrl;
@@ -758,12 +861,12 @@ final class LanServer {
         }
     }
 
-    private JSONObject messagesAfter(long after) {
+    private JSONObject messagesAfter(long after, String device, boolean verified) {
         List<JSONObject> newer = new ArrayList<>();
         synchronized (dataLock) {
             for (int i = 0; i < messages.length(); i++) {
                 JSONObject message = messages.optJSONObject(i);
-                if (message != null && message.optLong("seq", 0) > after) newer.add(message);
+                if (message != null && message.optLong("seq", 0) > after && canSee(message, device, verified)) newer.add(message);
             }
         }
         // Edited messages get fresh sequence numbers, so page in sequence order to keep the client cursor correct.

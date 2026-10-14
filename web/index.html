@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
   <meta name="theme-color" content="#f4f7f4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0f1a17" media="(prefers-color-scheme: dark)">
   <title>Hearth Chat · Home room</title>
@@ -64,18 +64,19 @@
       }
     }
     * { box-sizing: border-box; }
-    body { margin: 0; min-width: 320px; height: 100vh; height: 100dvh; overflow: hidden; background: var(--canvas); color: var(--ink); -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; }
+    body { margin: 0; height: 100vh; height: 100dvh; background: var(--canvas); color: var(--ink); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
     button, input, textarea { font: inherit; }
     button { color: inherit; }
     svg { flex-shrink: 0; }
-    .app { height: 100%; display: flex; flex-direction: column; }
+    .app { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
 
     /* Top bar */
     .topbar { height: 66px; flex: 0 0 66px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--line); background: var(--paper); }
     .brand { display: flex; align-items: center; gap: 11px; font-size: 18px; font-weight: 750; letter-spacing: -.04em; }
     .brand-mark { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: #d9ffe9; background: linear-gradient(145deg, #23503f, #163129); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
     .brand-mark svg { width: 22px; height: 22px; }
-    .top-center { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 12px; }
+    .top-center { display: flex; flex: 0 1 auto; align-items: center; gap: 10px; min-width: 0; padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 12px; }
     .connection-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .connection-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #e2a64e; box-shadow: 0 0 0 4px rgba(226,166,78,.18); }
     .connection-dot.online { background: #5fbe91; box-shadow: 0 0 0 4px rgba(95,190,145,.18); }
@@ -88,7 +89,7 @@
     /* Layout */
     .layout { display: grid; grid-template-columns: 236px minmax(360px, 1fr) 300px; flex: 1; min-height: 0; max-width: 1640px; width: 100%; margin: 0 auto; }
     .leftbar, .rightbar { min-height: 0; background: var(--side); }
-    .leftbar { padding: 24px 16px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 26px; overflow: auto; }
+    .leftbar { border-right: 1px solid var(--line); display: flex; flex-direction: column; }
     .nav-label { margin: 0 10px 11px; color: var(--faint); font-size: 10px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
     .room-item { display: flex; align-items: center; gap: 11px; min-height: 48px; padding: 0 12px; border-radius: 13px; color: var(--mint-dark); background: var(--mint-soft); font-size: 13px; font-weight: 700; }
     .room-icon { width: 27px; height: 27px; border-radius: 9px; display: grid; place-items: center; background: rgba(95,190,145,.22); }
@@ -110,21 +111,28 @@
 
     /* Chat */
     .chat-panel { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--paper); }
-    .chat-head { height: 70px; flex: 0 0 70px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--line-soft); }
+    .chat-head { position: relative; height: 70px; flex: 0 0 70px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--line-soft); }
+    .chat-head > div:first-child { min-width: 0; }
+    .chat-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .more-button { display: none; }
+    .more-menu { position: absolute; z-index: 12; top: 52px; right: 10px; width: 210px; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: var(--shadow); }
+    .more-menu button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px; border: 0; border-radius: 9px; background: transparent; text-align: left; font-size: 13px; cursor: pointer; }
+    .more-menu button:hover { background: var(--hover); }
+    .more-menu svg { width: 17px; height: 17px; color: var(--mint-strong); }
     .chat-title { margin: 0; font-size: 16px; letter-spacing: -.035em; }
     .chat-subtitle { margin-top: 3px; color: var(--muted); font-size: 11px; }
-    .head-actions { display: flex; align-items: center; gap: 8px; }
+    .head-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
     .pill-button { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink-soft); background: var(--paper); font-size: 12px; font-weight: 650; cursor: pointer; white-space: nowrap; }
     .pill-button:hover { background: var(--hover); }
     .pill-button svg { width: 15px; height: 15px; }
     .pill-count { min-width: 18px; padding: 1px 5px; border-radius: 9px; background: var(--mint-soft); color: var(--mint-dark); font-size: 10px; font-weight: 800; text-align: center; }
-    .quick-copy { display: none; }
+    .quick-copy { display: none !important; }
     .search-bar { display: none; align-items: center; gap: 8px; padding: 9px 24px; border-bottom: 1px solid var(--line-soft); background: var(--side); }
     .search-bar.visible { display: flex; }
     .search-bar input { flex: 1; min-width: 0; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; outline: 0; color: var(--ink); background: var(--paper); font-size: 13px; }
     .search-bar input:focus { border-color: var(--mint-strong); }
     .search-count { color: var(--muted); font-size: 11px; white-space: nowrap; }
-    .messages { flex: 1; min-height: 0; overflow: auto; padding: 22px clamp(16px, 4.5vw, 64px) 26px; scroll-behavior: smooth; }
+    .messages { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 22px clamp(16px, 4.5vw, 64px) 26px; }
     .day-divider { display: flex; align-items: center; gap: 12px; margin: 8px auto 20px; color: var(--faint); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
     .day-divider::before, .day-divider::after { content: ""; height: 1px; flex: 1; background: var(--line-soft); }
     .welcome { max-width: 500px; margin: 36px auto; padding: 30px 26px; text-align: center; border: 1px solid var(--line); border-radius: 22px; background: var(--side); }
@@ -167,6 +175,54 @@
     .file-action:hover { filter: brightness(.96); }
     .file-action svg { width: 17px; height: 17px; }
 
+    /* Chat list and conversation header */
+    .layout { grid-template-columns: 320px minmax(360px, 1fr) 290px; }
+    .leftbar { padding: 0; gap: 0; overflow: hidden; }
+    .list-head { position: relative; display: flex; align-items: center; gap: 11px; padding: 14px 14px 10px 16px; }
+    .list-title { flex: 1; min-width: 0; }
+    .list-title b { display: block; overflow: hidden; font-size: 16px; letter-spacing: -.03em; text-overflow: ellipsis; white-space: nowrap; }
+    .conn { display: flex; align-items: center; gap: 7px; margin-top: 4px; color: var(--muted); font-size: 11.5px; }
+    .conn .connection-dot { width: 7px; height: 7px; flex-basis: 7px; box-shadow: none; }
+    .list-head .more-menu { top: 54px; right: 12px; }
+    .list-search { display: flex; align-items: center; gap: 8px; margin: 0 14px 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--faint); }
+    .list-search svg { width: 16px; height: 16px; }
+    .list-search input { flex: 1; min-width: 0; height: 38px; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 13px; }
+    .thread-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 16px; }
+    .thread-section { margin: 14px 10px 6px; color: var(--faint); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .thread { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px; border: 0; border-radius: 14px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+    .thread:hover { background: var(--hover); }
+    .thread.active { background: var(--mint-soft); }
+    .thread-avatar { position: relative; width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: 14px; font-weight: 800; }
+    .thread-avatar.room { border-radius: 14px; background: linear-gradient(145deg, #2f6a54, #1b3d31); }
+    .thread-avatar svg { width: 22px; height: 22px; }
+    .thread-avatar.online::after { content: ""; position: absolute; right: 0; bottom: 0; width: 11px; height: 11px; border: 2px solid var(--side); border-radius: 50%; background: #5fbe91; }
+    .thread.active .thread-avatar.online::after { border-color: var(--mint-soft); }
+    .thread-main { flex: 1; min-width: 0; }
+    .thread-top, .thread-bottom { display: flex; align-items: center; gap: 8px; }
+    .thread-name { flex: 1; min-width: 0; overflow: hidden; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .thread-time { color: var(--faint); font-size: 10.5px; white-space: nowrap; }
+    .thread-bottom { margin-top: 3px; }
+    .thread-preview { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+    .thread-preview.typing { color: var(--mint-strong); font-weight: 650; }
+    .thread-live { padding: 2px 7px; border-radius: 8px; color: #fff; background: #e5484d; font-size: 10px; font-weight: 800; }
+    .unread-badge { min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 10px; color: #fff; background: var(--mint-strong); font-size: 10.5px; font-weight: 800; }
+    .thread-empty { margin: 4px 10px; color: var(--faint); font-size: 12px; line-height: 1.55; }
+    .chat-head { gap: 10px; padding: 0 16px; }
+    .back-button { display: none; position: relative; border: 0; background: transparent; }
+    .back-button svg { width: 22px; height: 22px; }
+    .back-badge { position: absolute; top: 1px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 9px; color: #fff; background: var(--mint-strong); font-size: 9.5px; font-weight: 800; }
+    .head-who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 11px; }
+    .head-avatar { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: 13px; font-weight: 800; background: linear-gradient(145deg, #2f6a54, #1b3d31); }
+    .head-avatar.room { border-radius: 13px; }
+    .head-avatar svg { width: 21px; height: 21px; }
+    .head-text { min-width: 0; }
+    .chat-subtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-subtitle.typing { color: var(--mint-strong); font-weight: 650; }
+    .head-actions .icon-button { border: 0; background: transparent; }
+    .head-actions .icon-button:hover { background: var(--hover); }
+    .files-button { position: relative; }
+    .files-button .pill-count { position: absolute; top: 0; right: -2px; min-width: 16px; padding: 0 4px; font-size: 9px; }
+    .chat-head > .more-menu { top: 62px; right: 12px; }
     /* Composer */
     .composer-wrap { padding: 12px clamp(16px, 4.5vw, 64px) 18px; border-top: 1px solid var(--line-soft); background: var(--paper); }
     .composer { position: relative; padding: 8px 9px 8px 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); box-shadow: var(--shadow-sm); transition: border-color .15s; }
@@ -204,7 +260,7 @@
     .tray-progress { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--mint-strong); transition: width .2s; }
     .tray-item.done .tray-progress { background: #5fbe91; }
     .tray-item.failed { border-color: #e5484d; }
-    .drop-zone { position: absolute; z-index: 8; inset: 12px; display: none; place-items: center; border: 2px dashed var(--mint-strong); border-radius: 22px; background: var(--paper); background: color-mix(in srgb, var(--paper) 88%, transparent); pointer-events: none; }
+    .drop-zone { position: absolute; z-index: 8; top: 12px; right: 12px; bottom: 12px; left: 12px; display: none; place-items: center; border: 2px dashed var(--mint-strong); border-radius: 22px; background: var(--paper); background: color-mix(in srgb, var(--paper) 88%, transparent); pointer-events: none; }
     .drop-zone.visible { display: grid; }
     .drop-zone div { text-align: center; color: var(--mint-dark); font-weight: 750; }
     .drop-zone svg { width: 40px; height: 40px; margin-bottom: 8px; }
@@ -234,7 +290,7 @@
     .disclaimer { color: var(--faint); font-size: 10px; line-height: 1.6; }
 
     /* Overlays */
-    .scrim { position: fixed; z-index: 20; inset: 0; display: none; background: var(--scrim); }
+    .scrim { position: fixed; z-index: 20; top: 0; right: 0; bottom: 0; left: 0; display: none; background: var(--scrim); }
     .scrim.visible { display: block; }
     .drawer { position: fixed; z-index: 21; top: 0; right: 0; bottom: 0; width: min(420px, 100vw); display: flex; flex-direction: column; background: var(--paper); box-shadow: var(--shadow); transform: translateX(105%); transition: transform .22s ease; }
     .drawer.open { transform: none; }
@@ -247,9 +303,9 @@
     .media-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
     .media-tile { position: relative; aspect-ratio: 1; overflow: hidden; padding: 0; border: 0; border-radius: 10px; background: var(--bubble); cursor: pointer; }
     .media-tile img, .media-tile video { width: 100%; height: 100%; object-fit: cover; }
-    .media-tile .play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.25); }
+    .media-tile .play { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.25); }
     .media-tile .play svg { width: 28px; height: 28px; }
-    .lightbox { position: fixed; z-index: 30; inset: 0; display: none; flex-direction: column; background: rgba(5,10,8,.92); }
+    .lightbox { position: fixed; z-index: 30; top: 0; right: 0; bottom: 0; left: 0; display: none; flex-direction: column; background: rgba(5,10,8,.92); }
     .lightbox.visible { display: flex; }
     .lightbox-bar { display: flex; align-items: center; gap: 10px; padding: 14px 16px; color: #e6efe9; }
     .lightbox-title { flex: 1; min-width: 0; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
@@ -286,8 +342,9 @@
     .secure-banner { display: flex; align-items: center; gap: 10px; padding: 9px 24px; border-bottom: 1px solid var(--line-soft); background: #fff6e8; color: #7a5520; font-size: 12px; }
     @media (prefers-color-scheme: dark) { .secure-banner { background: #2a2214; color: #e8c28a; } }
     .secure-banner a { margin-left: auto; padding: 6px 10px; border-radius: 9px; color: #fff; background: #c98a2e; font-weight: 700; text-decoration: none; white-space: nowrap; }
-    .typing-line { height: 0; overflow: hidden; color: var(--muted); font-size: 11px; transition: height .15s; }
-    .typing-line.visible { height: 20px; }
+    .composer-wrap { position: relative; }
+    .typing-line { position: absolute; left: clamp(16px, 4.5vw, 64px); bottom: 100%; padding: 3px 10px; border-radius: 10px 10px 0 0; background: var(--paper); color: var(--muted); font-size: 11px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+    .typing-line.visible { opacity: 1; }
     .typing-dots { display: inline-flex; gap: 3px; margin-right: 6px; vertical-align: middle; }
     .typing-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--mint-strong); animation: blink 1.2s infinite; }
     .typing-dots i:nth-child(2) { animation-delay: .2s; } .typing-dots i:nth-child(3) { animation-delay: .4s; }
@@ -333,7 +390,7 @@
     .voice-speed { padding: 1px 6px; border: 0; border-radius: 7px; color: var(--ink-soft); background: var(--line); font-size: 10px; font-weight: 800; cursor: pointer; }
     .mic-button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 12px; color: #12372a; background: var(--mint); cursor: pointer; }
     .mic-button svg { width: 18px; height: 18px; }
-    .recorder { position: absolute; inset: 0; z-index: 3; display: none; align-items: center; gap: 12px; padding: 0 9px 0 14px; border-radius: 18px; background: var(--paper); }
+    .recorder { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 3; display: none; align-items: center; gap: 12px; padding: 0 9px 0 14px; border-radius: 18px; background: var(--paper); }
     .recorder.visible { display: flex; }
     .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e5484d; animation: blink 1s infinite; }
     .rec-time { min-width: 44px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -344,10 +401,10 @@
     .rec-send { width: 40px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 12px; color: #12372a; background: var(--mint); cursor: pointer; }
 
     /* Calls */
-    .call-screen { position: fixed; z-index: 50; inset: 0; display: none; flex-direction: column; color: #eef6f1; background: radial-gradient(circle at 50% 30%, #23463a, #0b1512 70%); }
+    .call-screen { position: fixed; z-index: 50; top: 0; right: 0; bottom: 0; left: 0; display: none; flex-direction: column; color: #eef6f1; background: radial-gradient(circle at 50% 30%, #23463a, #0b1512 70%); }
     .call-screen.visible { display: flex; }
     .call-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
-    .remote-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #050b09; }
+    .remote-video { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; object-fit: contain; background: #050b09; }
     .local-video { position: absolute; z-index: 2; right: 16px; top: 16px; width: clamp(96px, 22vw, 220px); aspect-ratio: 3 / 4; object-fit: cover; border: 2px solid rgba(255,255,255,.25); border-radius: 16px; background: #10201b; box-shadow: 0 10px 30px rgba(0,0,0,.4); transform: scaleX(-1); }
     .local-video.no-mirror { transform: none; }
     .call-identity { position: relative; z-index: 1; text-align: center; }
@@ -378,7 +435,7 @@
     .banner-btn { padding: 6px 11px; border: 0; border-radius: 9px; color: #fff; background: var(--mint-strong); font-size: 11.5px; font-weight: 750; cursor: pointer; white-space: nowrap; }
     .banner-btn.ghost { color: inherit; background: transparent; padding: 6px 7px; font-size: 15px; }
     .live-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #ff5a5f; box-shadow: 0 0 0 4px rgba(255,90,95,.2); animation: blink 1.4s infinite; }
-    .group-screen { position: fixed; z-index: 50; inset: 0; display: none; flex-direction: column; color: #eef6f1; background: #0b1512; }
+    .group-screen { position: fixed; z-index: 50; top: 0; right: 0; bottom: 0; left: 0; display: none; flex-direction: column; color: #eef6f1; background: #0b1512; }
     .group-screen.visible { display: flex; }
     .group-top { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
     .group-title { flex: 1; min-width: 0; }
@@ -389,7 +446,7 @@
     .group-grid { flex: 1; min-width: 0; min-height: 0; display: grid; gap: 8px; padding: 4px 12px 12px; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr)); }
     .tile { position: relative; overflow: hidden; display: grid; place-items: center; min-width: 0; min-height: 0; border-radius: 14px; background: #15241f; box-shadow: inset 0 0 0 2px transparent; transition: box-shadow .15s; }
     .tile.speaking { box-shadow: inset 0 0 0 3px #5fbe91; }
-    .tile canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #050b09; }
+    .tile canvas { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; object-fit: contain; background: #050b09; }
     .tile .tile-avatar { width: 34%; max-width: 96px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: clamp(14px, 3vw, 30px); font-weight: 800; }
     .tile-label { position: absolute; z-index: 1; left: 8px; bottom: 8px; max-width: calc(100% - 16px); display: flex; align-items: center; gap: 5px; padding: 3px 8px; overflow: hidden; border-radius: 8px; background: rgba(0,0,0,.5); font-size: 11.5px; white-space: nowrap; text-overflow: ellipsis; }
     .tile-label svg { width: 13px; height: 13px; color: #ff7a7f; }
@@ -406,12 +463,12 @@
     .gp.speaking .grow { color: #8fe0b6; font-weight: 700; }
     @media (max-width: 720px) {
       .room-banner, .group-banner { padding: 8px 14px; font-size: 11.5px; }
-      .group-people { position: absolute; z-index: 4; inset: 0 0 0 auto; width: min(300px, 86vw); background: #0f1d19; }
+      .group-people { position: absolute; z-index: 4; top: 0; right: 0; bottom: 0; left: auto; width: min(300px, 86vw); background: #0f1d19; }
       .group-grid { gap: 6px; padding: 4px 8px 8px; }
     }
     .hidden { display: none !important; }
     @media (max-width: 1100px) {
-      .layout { grid-template-columns: 210px minmax(340px, 1fr); }
+      .layout { grid-template-columns: 300px minmax(340px, 1fr); }
       .rightbar { display: none; }
     }
     @media (max-width: 720px) {
@@ -421,11 +478,16 @@
       .top-center { padding: 5px 10px; font-size: 10.5px; border: 0; }
       .profile { width: 34px; height: 34px; }
       .layout { display: flex; }
-      .leftbar, .rightbar { display: none; }
-      .chat-head { height: 58px; flex-basis: 58px; padding: 0 14px; }
-      .chat-subtitle { display: none; }
+      .rightbar { display: none; }
+      .leftbar { display: none; width: 100%; flex: 1; border-right: 0; background: var(--paper); }
+      body.view-list .leftbar { display: flex; flex-direction: column; }
+      body.view-list .chat-panel { display: none; }
+      .back-button { display: grid; width: 34px; margin-left: -6px; }
+      .head-avatar { width: 36px; height: 36px; flex-basis: 36px; }
+      .chat-head { height: 60px; flex-basis: 60px; gap: 6px; padding: 0 6px 0 10px; }
+      .head-actions { gap: 0; }
+      .pill-button { height: 36px; padding: 0 10px; }
       .pill-button .pill-label { display: none; }
-      .quick-copy { display: flex; }
       .search-bar { padding: 8px 14px; }
       .messages { padding: 16px 12px 20px; }
       .welcome { margin: 24px auto; padding: 24px 18px; }
@@ -448,53 +510,43 @@
 </head>
 <body>
   <div class="app">
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 11h2v2H8zm6 0h2v2h-2z" fill="currentColor"/></svg></span>
-        Hearth
-      </div>
-      <div class="top-center" aria-live="polite"><span id="connectionDot" class="connection-dot"></span><span id="connectionLabel" class="connection-label">Connecting to your home room…</span></div>
-      <div class="top-actions"><button id="profileButton" class="profile" title="Change your name" aria-label="Change your name">?</button></div>
-    </header>
     <div class="layout">
-      <aside class="leftbar">
-        <section>
-          <p class="nav-label">Your rooms</p>
-          <div class="room-item"><span class="room-icon"><svg viewBox="0 0 24 24" fill="none"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span><span>Home room</span><span class="room-tag">LOCAL</span></div>
-        </section>
-        <section>
-          <p class="nav-label">Room devices</p>
-          <div class="device-list">
-            <div class="device"><span class="device-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="2.8" width="14" height="18.4" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 18h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><span><span class="device-name">Room phone</span><span class="device-state">Message and file storage</span></span><span id="phoneLive" class="device-live"></span></div>
-            <div class="device"><span class="device-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="1.7" stroke="currentColor" stroke-width="1.6"/><path d="M8 21h8m-4-4v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><span><span class="device-name">This device</span><span class="device-state">Your browser</span></span><span class="device-live"></span></div>
+      <aside id="chatList" class="leftbar">
+        <div class="list-head">
+          <button id="profileButton" class="profile" type="button" title="Change your name" aria-label="Change your name">?</button>
+          <div class="list-title">
+            <b id="roomTitle">Home room</b>
+            <span class="conn" aria-live="polite"><span id="connectionDot" class="connection-dot"></span><span id="connectionLabel" class="connection-label">Connecting…</span></span>
           </div>
-        </section>
-        <section>
-          <p class="nav-label">Online now</p>
-          <div id="peerList" class="peer-list"></div>
-        </section>
-        <section>
-          <p class="nav-label">This room</p>
-          <div class="stat-grid">
-            <div class="stat"><b id="statMessages">0</b><span>Messages</span></div>
-            <div class="stat"><b id="statFiles">0</b><span>Files shared</span></div>
+          <button id="roomMenuButton" class="icon-button" type="button" aria-label="Room options" aria-haspopup="menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
+          <div id="roomMenu" class="more-menu hidden" role="menu">
+            <button id="roomsButton" class="hidden" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Switch room</button>
+            <button id="moreCopy" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.6"/></svg>Copy laptop link</button>
+            <button id="moreName" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Change my name</button>
           </div>
-        </section>
-        <div class="sidebar-note"><strong>Just your home Wi‑Fi</strong>Messages and files travel directly to the phone hosting this room. No cloud account needed.</div>
+        </div>
+        <label class="list-search"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><input id="listSearch" type="search" placeholder="Search people" aria-label="Search people"></label>
+        <div id="threadList" class="thread-list" role="list"></div>
       </aside>
       <main id="chatPanel" class="chat-panel">
         <div class="chat-head">
-          <div><h1 class="chat-title">Home room</h1><div class="chat-subtitle">Chat and share anything — photos, PDFs, documents, APKs, ZIPs…</div></div>
+          <button id="backButton" class="icon-button back-button" type="button" aria-label="Back to chats"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="backBadge" class="back-badge hidden"></span></button>
+          <div class="head-who">
+            <span id="headAvatar" class="head-avatar"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.2a3 3 0 0 1 0 5.6M17.5 14.3A5.5 5.5 0 0 1 20.5 19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+            <div class="head-text"><h1 id="chatTitle" class="chat-title">Home room</h1><div id="chatSubtitle" class="chat-subtitle"></div></div>
+          </div>
           <div class="head-actions">
-            <button id="roomsButton" class="pill-button hidden" type="button" aria-label="Rooms on this Wi-Fi"><svg viewBox="0 0 24 24" fill="none"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span class="pill-label">Rooms</span></button>
             <button id="groupToggle" class="pill-button" type="button" aria-label="Group call"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.2a3 3 0 0 1 0 5.6M17.5 14.3A5.5 5.5 0 0 1 20.5 19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="pill-label">Group call</span></button>
-            <button id="callToggle" class="pill-button" type="button" aria-label="Start a call"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span class="pill-label">Call</span></button>
-            <button id="searchToggle" class="pill-button" type="button" aria-label="Search messages"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="pill-label">Search</span></button>
-            <button id="filesToggle" class="pill-button" type="button" aria-label="Shared files"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span class="pill-label">Files</span><span id="filesCount" class="pill-count">0</span></button>
-            <button id="quickCopy" class="pill-button quick-copy" type="button" aria-label="Copy laptop link"><svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.6"/></svg></button>
+            <button id="dmVoice" class="icon-button hidden" type="button" aria-label="Voice call"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+            <button id="dmVideo" class="icon-button hidden" type="button" aria-label="Video call"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="13" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 10.5 5-3v9l-5-3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+            <button id="filesToggle" class="icon-button files-button" type="button" aria-label="Shared files"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span id="filesCount" class="pill-count hidden">0</span></button>
+            <button id="moreButton" class="icon-button" type="button" aria-label="More options" aria-haspopup="menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
+          </div>
+          <div id="moreMenu" class="more-menu hidden" role="menu">
+            <button id="moreSearch" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Search in this chat</button>
+            <button id="moreFiles" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Shared files</button>
           </div>
         </div>
-        <div id="callPicker" class="call-picker hidden"><h3>Call someone online</h3><div id="callPickerList" class="peer-list"></div></div>
         <div id="roomBanner" class="room-banner hidden"><span aria-hidden="true">📣</span><span id="roomBannerText" class="grow"></span><button id="roomBannerJoin" class="banner-btn" type="button">Join</button><button id="roomBannerClose" class="banner-btn ghost" type="button" aria-label="Dismiss">×</button></div>
         <div id="groupBanner" class="group-banner hidden"><span class="live-dot"></span><span id="groupBannerText" class="grow"></span><button id="groupJoinVoice" class="banner-btn" type="button">Join voice</button><button id="groupJoinVideo" class="banner-btn" type="button">Join video</button></div>
         <div id="secureBanner" class="secure-banner hidden"><span id="secureText">Voice messages and calls need the secure room address.</span><a id="secureLink" href="#">Open secure room</a></div>
@@ -540,7 +592,7 @@
       </main>
       <aside class="rightbar">
         <section class="detail-card">
-          <div class="detail-heading"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Recent files<button id="seeAllFiles" class="see-all" type="button">See all</button></div>
+          <div class="detail-heading"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Files in this chat<button id="seeAllFiles" class="see-all" type="button">See all</button></div>
           <div id="recentFiles" class="recent-list"></div>
         </section>
         <section class="detail-card">
@@ -626,6 +678,15 @@
   <div id="messageMenu" class="message-menu hidden" role="menu" aria-label="Message actions"></div>
   <div id="toast" class="toast" role="status"></div>
   <script>
+    // Older Android System WebView (Android 10/11 phones that never updated it) lacks replaceChildren (Chrome 86+).
+    if (!Element.prototype.replaceChildren) {
+      Element.prototype.replaceChildren = function (...nodes) {
+        while (this.firstChild) this.removeChild(this.firstChild);
+        this.append(...nodes);
+      };
+    }
+  </script>
+  <script>
     (() => {
       const STORE_KEY = 'hearth.messages.v1';
       const CURSOR_KEY = 'hearth.cursor.v1';
@@ -662,8 +723,28 @@
         typingAt: 0,
         unseen: 0,
         loaded: false,
+        thread: 'room',
+        listFilter: '',
+        openedAt: Date.now(),
+        lastRead: {},
+        key: '',
       };
       localStorage.setItem(DEVICE_KEY, state.device);
+      const KEY_KEY = 'hearth.key.v1';
+      const READ_KEY = 'hearth.read.v1';
+      const THREAD_KEY = 'hearth.thread.v1';
+      // A secret only this browser knows; the room phone uses it to keep private chats private.
+      try {
+        state.key = localStorage.getItem(KEY_KEY) || '';
+        if (state.key.length < 32) {
+          const bytes = new Uint8Array(24);
+          crypto.getRandomValues(bytes);
+          state.key = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+          localStorage.setItem(KEY_KEY, state.key);
+        }
+        state.lastRead = JSON.parse(localStorage.getItem(READ_KEY) || '{}') || {};
+        state.thread = sessionStorage.getItem(THREAD_KEY) || 'room';
+      } catch (_) {}
       if (!localStorage.getItem(NAME_KEY)) localStorage.setItem(NAME_KEY, state.name);
 
       const $ = (id) => document.getElementById(id);
@@ -673,6 +754,7 @@
       const messageMenu = $('messageMenu');
       let TITLE = document.title;
 
+      const GROUP_ICON = '<svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.2a3 3 0 0 1 0 5.6M17.5 14.3A5.5 5.5 0 0 1 20.5 19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
       const MIC_OFF_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="M9 9V6a3 3 0 0 1 5.8-1M15 11v.5A3 3 0 0 1 10 14M5.5 11a6.5 6.5 0 0 0 10.4 5.2M18.5 11a6.4 6.4 0 0 1-.6 2.7M12 17.5V21M4 4l16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
       const ICONS = {
         copy: '<svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.6"/></svg>',
@@ -793,8 +875,8 @@
         $('connectionLabel').dataset.ready = '1';
         state.online = online;
         $('connectionDot').classList.toggle('online', online);
-        $('connectionLabel').textContent = online ? 'Connected on your home Wi‑Fi' : 'Offline · showing saved messages';
-        $('phoneLive').style.background = online ? '#65c390' : '#d8a15e';
+        threadsRendered = '';
+        renderThreads();
       }
       function renderProfile() {
         $('profileButton').textContent = initials(state.name);
@@ -898,6 +980,9 @@
           state.messages.push(merged);
         }
         state.byId.set(id, merged);
+        if (!previous && state.loaded && merged.sender !== state.device && merged.to && threadOf(merged) !== state.thread && !document.hidden) {
+          showToast(`${safeText(merged.senderName) || 'Someone'} (private): ${snippetOf(merged)}`);
+        }
         if (!previous && state.loaded && document.hidden && merged.sender !== state.device) {
           state.hiddenUnread = (state.hiddenUnread || 0) + 1;
           document.title = `(${state.hiddenUnread}) ${TITLE}`;
@@ -920,6 +1005,7 @@
         state.messages.sort((a, b) => (Number(a.createdAt) - Number(b.createdAt)) || ((Number(a.seq) || 0) - (Number(b.seq) || 0)));
         renderMessages();
         renderSideLists();
+        renderThreads();
       }
       function matchesSearch(message) {
         if (!state.search) return true;
@@ -930,10 +1016,11 @@
       /** Rebuilds only rows whose content changed, and appends in place when possible so playing media keeps playing. */
       function renderMessages() {
         const scrollAtBottom = isNearBottom();
-        const visible = state.messages.filter(matchesSearch);
+        const inThread = state.messages.filter(message => threadOf(message) === state.thread);
+        const visible = inThread.filter(matchesSearch);
         $('searchCount').textContent = state.search ? `${visible.length} found` : '';
-        if (!state.messages.length || !visible.length) {
-          messagesEl.replaceChildren(state.messages.length ? emptySearch() : welcomeCard());
+        if (!inThread.length || !visible.length) {
+          messagesEl.replaceChildren(inThread.length ? emptySearch() : welcomeCard());
           state.renderedKeys = [];
           return;
         }
@@ -969,6 +1056,7 @@
         for (const key of state.rows.keys()) if (!live.has(key)) state.rows.delete(key);
         const appended = keys.length - old.length;
         state.renderedKeys = keys;
+        if (scrollAtBottom && !document.body.classList.contains('view-list')) markRead(state.thread);
         if (scrollAtBottom) scrollToBottom();
         else if (state.loaded && appended > 0 && !state.search) {
           state.unseen += appended;
@@ -984,6 +1072,13 @@
       function welcomeCard() {
         const welcome = document.createElement('div');
         welcome.className = 'welcome';
+        if (state.thread !== 'room') {
+          const name = personName(state.thread);
+          welcome.innerHTML = '<div class="welcome-art"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.6"/></svg></div><h2></h2><p></p>';
+          welcome.querySelector('h2').textContent = `Private chat with ${name}`;
+          welcome.querySelector('p').textContent = `Only you and ${name} see these messages and files. Use the phone and camera buttons above to call.`;
+          return welcome;
+        }
         welcome.innerHTML = '<div class="welcome-art"><svg viewBox="0 0 24 24" fill="none"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 11h2v2H8zm6 0h2v2h-2z" fill="currentColor"/></svg></div><h2>Your home room is ready</h2><p>Send a note or share any file — it will be waiting when your other devices reconnect. Drag files here or paste them to attach.</p><div class="welcome-types"><span style="background:var(--pdf)">PDF</span><span style="background:var(--doc)">DOCX</span><span style="background:var(--xls)">XLSX</span><span style="background:var(--ppt)">PPTX</span><span style="background:var(--zip)">ZIP</span><span style="background:var(--apk);color:#0b3a22">APK</span><span style="background:var(--audio)">MP3</span><span style="background:var(--video)">MP4</span></div>';
         return welcome;
       }
@@ -1133,7 +1228,9 @@
         }
         text.append(title, sub);
         box.append(icon, text);
-        if (call.status === 'started') {
+        const index = state.messages.indexOf(message);
+        const ended = state.messages.slice(index + 1).some(other => other.call && other.call.group && other.call.status === 'completed');
+        if (call.status === 'started' && !ended) {
           const join = document.createElement('button');
           join.type = 'button';
           join.textContent = 'Join';
@@ -1349,7 +1446,7 @@
         return link;
       }
       function sharedFiles(visual) {
-        return state.messages.filter(message => message.mediaUrl && !message.voice && !message.deleted && (visual ? isVisualMedia(message) : !isVisualMedia(message))).reverse();
+        return state.messages.filter(message => message.mediaUrl && !message.voice && !message.deleted && threadOf(message) === state.thread && (visual ? isVisualMedia(message) : !isVisualMedia(message))).reverse();
       }
       function fileRow(message) {
         const row = document.createElement('a');
@@ -1377,14 +1474,13 @@
         const files = sharedFiles(false);
         const media = sharedFiles(true);
         $('filesCount').textContent = String(files.length + media.length);
-        $('statMessages').textContent = String(state.messages.length);
-        $('statFiles').textContent = String(files.length + media.length);
+        $('filesCount').classList.toggle('hidden', !(files.length + media.length));
         const recent = $('recentFiles');
         if (files.length) recent.replaceChildren(...files.slice(0, 6).map(fileRow));
         else {
           const empty = document.createElement('div');
           empty.className = 'recent-empty';
-          empty.textContent = 'Documents, APKs and archives shared here will show up in this list.';
+          empty.textContent = 'Documents, APKs and archives shared in this chat show up here.';
           recent.replaceChildren(empty);
         }
         if ($('drawer').classList.contains('open')) renderDrawer();
@@ -1577,7 +1673,8 @@
         try {
           state.info = await getJson(`${PAGE_BASE}/api/info`);
           if (state.info.room) {
-            document.querySelector('.chat-title').textContent = state.info.room;
+            $('roomTitle').textContent = state.info.room;
+            renderHeader();
             document.title = `${state.info.room} · Hearth Chat`;
             TITLE = document.title;
           }
@@ -1597,7 +1694,7 @@
         try {
           let more = true;
           while (more) {
-            const page = await getJson(`${PAGE_BASE}/api/messages?after=${encodeURIComponent(state.cursor)}`);
+            const page = await getJson(`${PAGE_BASE}/api/messages?${new URLSearchParams({ after: String(state.cursor), device: state.device, key: state.key })}`);
             setOnline(true);
             (page.messages || []).forEach(message => addMessage(message));
             more = !!page.more;
@@ -1623,7 +1720,7 @@
             try {
               const saved = await getJson(`${PAGE_BASE}/api/messages`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(message),
+                body: JSON.stringify({ ...message, key: state.key }),
               });
               addMessage(saved);
             } catch (_) { return; }
@@ -1634,6 +1731,7 @@
       }
       async function sendText(text) {
         const message = { id: makeId(), sender: state.device, senderName: state.name, text, createdAt: Date.now(), kind: 'text', seq: 0 };
+        if (currentTo()) message.to = currentTo();
         if (state.replyTo) message.replyTo = state.replyTo;
         addMessage(message);
         clearInput();
@@ -1646,14 +1744,15 @@
         input.value = '';
         input.style.height = 'auto';
         state.typingAt = 0;
+        sendPresence(false);
         updateComposerButtons();
       }
       function uploadFile(item, caption, extra) {
         return new Promise((resolve, reject) => {
           const file = item.file;
           const params = new URLSearchParams({
-            sender: state.device, senderName: state.name, caption,
-            name: file.name || 'file', type: file.type, ...(extra || {}),
+            sender: state.device, senderName: state.name, caption, key: state.key,
+            name: file.name || 'file', type: file.type, ...(currentTo() ? { to: currentTo() } : {}), ...(extra || {}),
           });
           const request = new XMLHttpRequest();
           request.open('POST', `${PAGE_BASE}/api/media?${params}`);
@@ -1796,18 +1895,18 @@
         try {
           const saved = await getJson(`${PAGE_BASE}/api/react`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: message.id, device: state.device, emoji }),
+            body: JSON.stringify({ id: message.id, device: state.device, key: state.key, emoji }),
           });
           addMessage(saved);
         } catch (error) { showToast(error.message); }
       }
       async function deleteMessage(message) {
-        if (!confirm('Delete this message for everyone in the room?')) return;
+        if (!confirm(message.to ? 'Delete this message for both of you?' : 'Delete this message for everyone in the room?')) return;
         if (!state.online) return showToast('Reconnect to the room to delete messages.');
         try {
           const saved = await getJson(`${PAGE_BASE}/api/delete`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: message.id, device: state.device }),
+            body: JSON.stringify({ id: message.id, device: state.device, key: state.key }),
           });
           addMessage(saved);
           showToast('Message deleted.');
@@ -1821,7 +1920,7 @@
         } else if (PAGE_BASE) {
           try {
             const typing = Date.now() - state.typingAt < 4000 ? '1' : '0';
-            const params = new URLSearchParams({ device: state.device, name: state.name, typing, busy: state.call ? '1' : '0', after: String(state.signalCursor) });
+            const params = new URLSearchParams({ device: state.device, key: state.key, name: state.name, typing, busy: state.call ? '1' : '0', after: String(state.signalCursor) });
             const result = await getJson(`${PAGE_BASE}/api/presence?${params}`);
             state.peers = (result.peers || []).filter(peer => peer.device !== state.device);
             const ack = Number(result.next) || 0;
@@ -1836,50 +1935,16 @@
         const fast = state.call && state.call.status !== 'active';
         setTimeout(presenceLoop, fast ? 300 : 1000);
       }
+      let peersRendered = null;
       function renderPeers() {
-        const build = (container, emptyText) => {
-          if (!state.peers.length) {
-            const empty = document.createElement('div');
-            empty.className = 'peer-empty';
-            empty.textContent = emptyText;
-            container.replaceChildren(empty);
-            return;
-          }
-          container.replaceChildren(...state.peers.map(peer => {
-            const row = document.createElement('div');
-            row.className = 'peer';
-            const avatar = document.createElement('span');
-            avatar.className = `peer-avatar${peer.busy ? ' busy' : ''}`;
-            avatar.style.background = avatarColor(peer.device);
-            avatar.textContent = initials(peer.name);
-            const text = document.createElement('div');
-            text.className = 'peer-text';
-            const name = document.createElement('div');
-            name.className = 'peer-name';
-            name.textContent = peer.name;
-            const status = document.createElement('div');
-            status.className = 'peer-state';
-            status.textContent = peer.busy ? 'In a call' : peer.typing ? 'Typing…' : 'Online';
-            text.append(name, status);
-            const voice = document.createElement('button');
-            voice.type = 'button';
-            voice.className = 'peer-call';
-            voice.innerHTML = ICONS.phone;
-            voice.title = `Voice call ${peer.name}`;
-            voice.addEventListener('click', () => { $('callPicker').classList.add('hidden'); startCall(peer.device, peer.name, false); });
-            const video = document.createElement('button');
-            video.type = 'button';
-            video.className = 'peer-call';
-            video.innerHTML = ICONS.video;
-            video.title = `Video call ${peer.name}`;
-            video.addEventListener('click', () => { $('callPicker').classList.add('hidden'); startCall(peer.device, peer.name, true); });
-            row.append(avatar, text, voice, video);
-            return row;
-          }));
-        };
-        build($('peerList'), 'Nobody else is online. Open Hearth on another device on this Wi‑Fi.');
-        build($('callPickerList'), 'Nobody else is online right now. Open Hearth on another phone or laptop on this Wi‑Fi to call it.');
-        const typers = state.peers.filter(peer => peer.typing).map(peer => peer.name);
+        const fingerprint = JSON.stringify(state.peers.map(peer => [peer.device, peer.name, peer.typing, peer.busy]));
+        if (fingerprint === peersRendered) return;
+        peersRendered = fingerprint;
+        renderThreads();
+        renderHeader();
+        // Show who is typing in this chat just above the message box.
+        const typers = state.thread === 'room' ? state.peers.filter(peer => peer.typing).map(peer => peer.name)
+          : state.peers.filter(peer => peer.typing && peer.device === state.thread).map(peer => peer.name);
         const line = $('typingLine');
         if (typers.length) {
           line.innerHTML = '<span class="typing-dots"><i></i><i></i><i></i></span>';
@@ -2209,7 +2274,7 @@
           const status = call.startedAt ? 'completed' : reason === 'declined' ? 'declined' : reason === 'busy' ? 'busy' : reason === 'failed' ? 'failed' : 'no-answer';
           const kind = call.video ? 'Video call' : 'Voice call';
           const message = {
-            id: makeId(), sender: state.device, senderName: state.name, createdAt: Date.now(), kind: 'call', seq: 0,
+            id: makeId(), sender: state.device, senderName: state.name, createdAt: Date.now(), kind: 'call', seq: 0, to: call.peer,
             text: `${kind} with ${call.peerName}${call.startedAt ? ` · ${clock(duration)}` : ''}`,
             call: { video: !!call.video, status, duration, with: call.peerName },
           };
@@ -2234,7 +2299,6 @@
       function showCallScreen() {
         callEls.screen.classList.add('visible');
         closeMessageMenu();
-        $('callPicker').classList.add('hidden');
       }
       function updateCallView() {
         const call = state.call;
@@ -2363,12 +2427,6 @@
         try { HearthAndroid.setSpeaker(call.speaker); } catch (_) {}
         updateCallView();
       });
-      $('callToggle').addEventListener('click', event => {
-        event.stopPropagation();
-        if (needSecure('Calling')) return;
-        renderPeers();
-        $('callPicker').classList.toggle('hidden');
-      });
       window.addEventListener('beforeunload', () => {
         const call = state.call;
         if (call && navigator.sendBeacon) {
@@ -2427,7 +2485,7 @@
         if (!force && key === live.presenceSent && Date.now() - live.presenceAt < 5000) return;
         live.presenceSent = key;
         live.presenceAt = Date.now();
-        sendLive({ t: force ? 'hello' : 'presence', device: state.device, name: state.name, typing, busy });
+        sendLive({ t: force ? 'hello' : 'presence', device: state.device, key: state.key, name: state.name, typing, busy });
       }
       function onLiveText(text) {
         let message;
@@ -2811,6 +2869,7 @@
         const liveSlots = new Set((roster.participants || []).map(p => p.slot));
         for (const [slot, slotInfo] of group.slots) if (!liveSlots.has(slot)) { closeSlot(slotInfo); group.slots.delete(slot); group.tiles.delete(slot); }
         renderGroupBanner();
+        renderThreads();
         if (group.joined) renderGroup();
       }
       function renderGroupBanner() {
@@ -3046,10 +3105,251 @@
       if (window.HearthAndroid && typeof HearthAndroid.openRooms === 'function') {
         $('roomsButton').classList.remove('hidden');
         $('roomsButton').addEventListener('click', () => {
+          $('roomMenu').classList.add('hidden');
           if (state.call || group.joined) return showToast('Leave the call before switching rooms.');
           HearthAndroid.openRooms();
         });
       }
+
+      /* ---------- Conversations: the room chat plus a private chat with each person ---------- */
+      function threadOf(message) {
+        if (!message.to) return 'room';
+        return message.sender === state.device ? message.to : message.sender;
+      }
+      function currentTo() { return state.thread === 'room' ? '' : state.thread; }
+      function personName(device) {
+        const peer = state.peers.find(item => item.device === device);
+        if (peer) return peer.name;
+        for (let i = state.messages.length - 1; i >= 0; i--) {
+          const message = state.messages[i];
+          if (message.sender === device && message.senderName) return safeText(message.senderName);
+        }
+        return 'Someone';
+      }
+      function isOnline(device) { return state.peers.some(peer => peer.device === device); }
+      function lastReadAt(thread) {
+        if (!(thread in state.lastRead)) state.lastRead[thread] = state.openedAt;
+        return state.lastRead[thread];
+      }
+      function unreadCount(thread) {
+        const since = lastReadAt(thread);
+        let count = 0;
+        for (const message of state.messages) {
+          if (message.sender !== state.device && Number(message.createdAt) > since && threadOf(message) === thread && !message.deleted) count++;
+        }
+        return count;
+      }
+      function markRead(thread) {
+        if (document.hidden) return;
+        const latest = state.messages.reduce((max, message) => threadOf(message) === thread ? Math.max(max, Number(message.createdAt) || 0) : max, 0);
+        if (latest > lastReadAt(thread)) {
+          state.lastRead[thread] = latest;
+          try { localStorage.setItem(READ_KEY, JSON.stringify(state.lastRead)); } catch (_) {}
+        }
+      }
+      function knownPeople() {
+        const people = new Map();
+        for (const peer of state.peers) people.set(peer.device, { device: peer.device, name: peer.name });
+        // Offline people stay listed only when you have a private chat with them, so the list stays short.
+        for (const message of state.messages) {
+          if (!message.to) continue;
+          const other = threadOf(message);
+          if (!other || other === state.device || other === 'room') continue;
+          if (!people.has(other)) people.set(other, { device: other, name: personName(other) });
+        }
+        if (state.thread !== 'room' && !people.has(state.thread)) people.set(state.thread, { device: state.thread, name: personName(state.thread) });
+        return [...people.values()];
+      }
+      function lastMessageIn(thread) {
+        for (let i = state.messages.length - 1; i >= 0; i--) if (threadOf(state.messages[i]) === thread) return state.messages[i];
+        return null;
+      }
+      function previewOf(message) {
+        if (!message) return '';
+        if (message.deleted) return 'Message deleted';
+        const who = message.sender === state.device ? 'You: ' : '';
+        return who + snippetOf(message);
+      }
+      function shortTime(timestamp) {
+        const date = new Date(Number(timestamp) || 0);
+        if (!timestamp) return '';
+        return date.toDateString() === new Date().toDateString()
+          ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+          : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      }
+      let threadsRendered = '';
+      function renderThreads() {
+        const filter = state.listFilter;
+        const people = knownPeople();
+        const items = people.map(person => {
+          const last = lastMessageIn(person.device);
+          const peer = state.peers.find(item => item.device === person.device);
+          return { ...person, last, unread: unreadCount(person.device), online: !!peer, typing: !!(peer && peer.typing), busy: !!(peer && peer.busy) };
+        }).filter(person => !filter || person.name.toLowerCase().includes(filter));
+        items.sort((a, b) => (b.unread > 0) - (a.unread > 0)
+          || ((b.last ? Number(b.last.createdAt) : 0) - (a.last ? Number(a.last.createdAt) : 0))
+          || (b.online - a.online) || a.name.localeCompare(b.name));
+        const roomLast = lastMessageIn('room');
+        const roomUnread = unreadCount('room');
+        const roomTyping = state.peers.filter(peer => peer.typing).map(peer => peer.name);
+        const callCount = group.roster.active ? (group.roster.participants || []).length : 0;
+        const fingerprint = JSON.stringify([state.thread, filter, roomLast && roomLast.id, roomLast && roomLast.seq, roomUnread, roomTyping, callCount,
+          items.map(item => [item.device, item.name, item.last && item.last.id, item.last && item.last.seq, item.unread, item.online, item.typing, item.busy]),
+          state.info && state.info.room]);
+        if (fingerprint === threadsRendered) return;
+        threadsRendered = fingerprint;
+        const roomName = (state.info && state.info.room) || 'Room';
+        const nodes = [];
+        if (!filter || roomName.toLowerCase().includes(filter) || 'everyone'.includes(filter)) {
+          nodes.push(threadRow({
+            thread: 'room', name: roomName, avatar: 'room', last: roomLast, unread: roomUnread,
+            preview: roomTyping.length ? `${roomTyping[0]}${roomTyping.length > 1 ? ' and others are' : ' is'} typing…` : (previewOf(roomLast) || 'Group chat for everyone in this room'),
+            typing: roomTyping.length > 0, live: callCount ? `Call · ${callCount}` : '',
+          }));
+        }
+        const label = document.createElement('div');
+        label.className = 'thread-section';
+        const onlineCount = state.peers.length;
+        label.textContent = `People · ${onlineCount} online`;
+        nodes.push(label);
+        if (!items.length) {
+          const empty = document.createElement('p');
+          empty.className = 'thread-empty';
+          empty.textContent = filter ? 'Nobody matches that name.' : 'When others open this room, they appear here. Tap a person to chat privately or call them.';
+          nodes.push(empty);
+        }
+        for (const item of items) {
+          nodes.push(threadRow({
+            thread: item.device, name: item.name, avatar: item.device, last: item.last, unread: item.unread, online: item.online,
+            preview: item.typing ? 'Typing…' : item.busy && !item.last ? 'In a call' : (previewOf(item.last) || (item.online ? 'Online · say hello' : 'Offline')),
+            typing: item.typing,
+          }));
+        }
+        $('threadList').replaceChildren(...nodes);
+        const otherUnread = (state.thread === 'room' ? 0 : roomUnread) + items.filter(item => item.device !== state.thread).reduce((sum, item) => sum + item.unread, 0);
+        $('backBadge').textContent = String(otherUnread);
+        $('backBadge').classList.toggle('hidden', !otherUnread);
+        $('connectionLabel').textContent = state.online ? `Connected · ${onlineCount + 1} here` : 'Offline · showing saved messages';
+      }
+      function threadRow(item) {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = `thread${item.thread === state.thread ? ' active' : ''}`;
+        row.setAttribute('role', 'listitem');
+        const avatar = document.createElement('span');
+        if (item.avatar === 'room') {
+          avatar.className = 'thread-avatar room';
+          avatar.innerHTML = GROUP_ICON;
+        } else {
+          avatar.className = `thread-avatar${item.online ? ' online' : ''}`;
+          avatar.style.background = avatarColor(item.avatar);
+          avatar.textContent = initials(item.name);
+        }
+        const main = document.createElement('span');
+        main.className = 'thread-main';
+        const top = document.createElement('span');
+        top.className = 'thread-top';
+        const name = document.createElement('span');
+        name.className = 'thread-name';
+        name.textContent = item.name;
+        const time = document.createElement('span');
+        time.className = 'thread-time';
+        time.textContent = item.last ? shortTime(item.last.createdAt) : '';
+        top.append(name, time);
+        const bottom = document.createElement('span');
+        bottom.className = 'thread-bottom';
+        const preview = document.createElement('span');
+        preview.className = `thread-preview${item.typing ? ' typing' : ''}`;
+        preview.textContent = item.preview;
+        bottom.append(preview);
+        if (item.live) {
+          const live = document.createElement('span');
+          live.className = 'thread-live';
+          live.textContent = item.live;
+          bottom.append(live);
+        }
+        if (item.unread) {
+          const badge = document.createElement('span');
+          badge.className = 'unread-badge';
+          badge.textContent = item.unread > 99 ? '99+' : String(item.unread);
+          bottom.append(badge);
+        }
+        main.append(top, bottom);
+        row.append(avatar, main);
+        row.addEventListener('click', () => openThread(item.thread));
+        return row;
+      }
+      function openThread(thread, keepView) {
+        if (state.thread !== thread) {
+          state.thread = thread;
+          cancelReply();
+          if (state.search) closeSearch();
+          state.unseen = 0;
+          $('jumpBadge').classList.add('hidden');
+          try { sessionStorage.setItem(THREAD_KEY, thread); } catch (_) {}
+        }
+        if (!keepView) setView('chat');
+        renderHeader();
+        renderAll();
+        requestAnimationFrame(scrollToBottom);
+        markRead(thread);
+        renderThreads();
+        if (!isMobile()) input.focus();
+      }
+      function isMobile() { return innerWidth <= 720; }
+      function setView(view) {
+        document.body.classList.toggle('view-list', view === 'list');
+        document.body.classList.toggle('view-chat', view !== 'list');
+        if (view === 'list') { threadsRendered = ''; renderThreads(); }
+      }
+      function renderHeader() {
+        const room = state.thread === 'room';
+        const avatar = $('headAvatar');
+        const title = room ? ((state.info && state.info.room) || 'Room') : personName(state.thread);
+        $('chatTitle').textContent = title;
+        avatar.classList.toggle('room', room);
+        if (room) {
+          avatar.innerHTML = GROUP_ICON;
+          avatar.style.background = '';
+        } else {
+          avatar.textContent = initials(title);
+          avatar.style.background = avatarColor(state.thread);
+        }
+        const subtitle = $('chatSubtitle');
+        let text;
+        let typing = false;
+        if (room) {
+          const typers = state.peers.filter(peer => peer.typing).map(peer => peer.name);
+          typing = typers.length > 0;
+          text = typing ? `${typers.slice(0, 2).join(', ')} typing…` : `Everyone in this room · ${state.peers.length + 1} online`;
+        } else {
+          const peer = state.peers.find(item => item.device === state.thread);
+          typing = !!(peer && peer.typing);
+          text = typing ? 'Typing…' : peer ? (peer.busy ? 'In a call' : 'Online') : 'Offline · messages wait for them';
+        }
+        subtitle.textContent = text;
+        subtitle.classList.toggle('typing', typing);
+        $('groupToggle').classList.toggle('hidden', !room);
+        $('dmVoice').classList.toggle('hidden', room);
+        $('dmVideo').classList.toggle('hidden', room);
+        input.placeholder = state.pending.length ? 'Add a caption (optional)…' : room ? `Message ${title}…` : `Message ${title} privately…`;
+        document.title = state.hiddenUnread ? `(${state.hiddenUnread}) ${TITLE}` : TITLE;
+      }
+      $('backButton').addEventListener('click', () => setView('list'));
+      $('dmVoice').addEventListener('click', () => startCall(state.thread, personName(state.thread), false));
+      $('dmVideo').addEventListener('click', () => startCall(state.thread, personName(state.thread), true));
+      $('listSearch').addEventListener('input', () => { state.listFilter = $('listSearch').value.trim().toLowerCase(); renderThreads(); });
+      /** Android back button: close what is open, then go from a chat back to the chat list. */
+      window.hearthBack = () => {
+        if ($('lightbox').classList.contains('visible')) { closeLightbox(); return true; }
+        if ($('drawer').classList.contains('open')) { closeDrawer(); return true; }
+        if (!$('nameModal').classList.contains('hidden')) { closeNameModal(); return true; }
+        if (!messageMenu.classList.contains('hidden')) { closeMessageMenu(); return true; }
+        if ($('searchBar').classList.contains('visible')) { closeSearch(); return true; }
+        if (state.call || group.joined) return false;
+        if (isMobile() && !document.body.classList.contains('view-list')) { setView('list'); return true; }
+        return false;
+      };
 
       /* ---------- Events ---------- */
       function toggleAttachMenu(force) {
@@ -3124,12 +3424,10 @@
       $('lightboxDownload').addEventListener('click', () => { if (state.lightboxMessage) downloadFile(state.lightboxMessage); });
 
       let searchTimer = null;
-      $('searchToggle').addEventListener('click', () => {
-        const bar = $('searchBar');
-        bar.classList.toggle('visible');
-        if (bar.classList.contains('visible')) $('searchInput').focus();
-        else closeSearch();
-      });
+      function openSearch() {
+        $('searchBar').classList.add('visible');
+        $('searchInput').focus();
+      }
       function closeSearch() {
         $('searchBar').classList.remove('visible');
         $('searchInput').value = '';
@@ -3145,12 +3443,12 @@
       document.addEventListener('pointerdown', event => {
         if (!messageMenu.contains(event.target)) closeMessageMenu();
         if (!event.target.closest('#attachMenu, #attachButton')) toggleAttachMenu(false);
-        if (!event.target.closest('#callPicker, #callToggle')) $('callPicker').classList.add('hidden');
+        if (!event.target.closest('#roomMenu, #roomMenuButton')) $('roomMenu').classList.add('hidden');
+        if (!event.target.closest('#moreMenu, #moreButton')) $('moreMenu').classList.add('hidden');
       });
       document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
         closeMessageMenu(); toggleAttachMenu(false); closeLightbox(); closeDrawer(); closeNameModal(); cancelReply();
-        $('callPicker').classList.add('hidden');
         if ($('searchBar').classList.contains('visible')) closeSearch();
       });
       window.addEventListener('resize', closeMessageMenu);
@@ -3173,7 +3471,12 @@
         copyText(address, 'Room address copied.');
       }
       $('copyLink').addEventListener('click', copyRoomAddress);
-      $('quickCopy').addEventListener('click', copyRoomAddress);
+      $('moreButton').addEventListener('click', event => { event.stopPropagation(); $('moreMenu').classList.toggle('hidden'); });
+      $('moreSearch').addEventListener('click', () => { $('moreMenu').classList.add('hidden'); openSearch(); });
+      $('moreFiles').addEventListener('click', () => { $('moreMenu').classList.add('hidden'); openDrawer(); });
+      $('roomMenuButton').addEventListener('click', event => { event.stopPropagation(); $('roomMenu').classList.toggle('hidden'); });
+      $('moreCopy').addEventListener('click', () => { $('roomMenu').classList.add('hidden'); copyRoomAddress(); });
+      $('moreName').addEventListener('click', () => { $('roomMenu').classList.add('hidden'); openNameModal(); });
       $('micButton').addEventListener('click', startRecording);
       $('recCancel').addEventListener('click', () => stopRecording(true));
       $('recSend').addEventListener('click', () => stopRecording(false));
@@ -3182,9 +3485,20 @@
       messagesEl.addEventListener('scroll', () => {
         const near = isNearBottom();
         $('jumpButton').classList.toggle('hidden', near);
-        if (near) { state.unseen = 0; $('jumpBadge').classList.add('hidden'); }
+        if (near) {
+          state.unseen = 0;
+          $('jumpBadge').classList.add('hidden');
+          const before = unreadCount(state.thread);
+          markRead(state.thread);
+          if (before) renderThreads();
+        }
       }, { passive: true });
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) { state.hiddenUnread = 0; document.title = TITLE; } });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        state.hiddenUnread = 0;
+        document.title = TITLE;
+        if (!document.body.classList.contains('view-list') && isNearBottom()) { markRead(state.thread); renderThreads(); }
+      });
       $('composer').addEventListener('submit', async (event) => {
         event.preventDefault();
         if (state.uploading) return;
@@ -3209,6 +3523,8 @@
       window.addEventListener('online', pollRoom);
 
       renderProfile();
+      setView('chat');
+      renderHeader();
       loadLocalMessages();
       renderAll();
       openDb().then(db => {

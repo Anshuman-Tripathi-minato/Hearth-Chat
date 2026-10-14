@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
+  <title>Hearth · Bluetooth chat</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172c2a; --muted: #76847e; --faint: #9aa59f; --line: #e5ebe6; --paper: #fff; --canvas: #f4f7f4; --side: #fbfcfa;
+      --mint: #b6f1d4; --mint-strong: #5fbe91; --mint-dark: #245d48; --mint-soft: #e6f7ed; --hover: #f1f8f3;
+      --blue: #3e7bfa; --blue-soft: #e8f0ff; --bubble: #f6f8f6; --bubble-line: #edf0ed; --bubble-mine: #e3ecff; --bubble-mine-line: #cfdcfb;
+      --danger: #e5484d; --warn: #fff6e8; --warn-ink: #7a5520;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { color-scheme: dark; --ink: #e3ece7; --muted: #8fa197; --faint: #6f8278; --line: #22312c; --paper: #121e1a; --canvas: #0f1a17; --side: #111c18;
+        --mint: #3f9c72; --mint-dark: #a6e6c6; --mint-soft: #1b3229; --hover: #1b2b25; --blue-soft: #18233a;
+        --bubble: #1a2722; --bubble-line: #23332d; --bubble-mine: #1c2944; --bubble-mine-line: #283a60; --warn: #2a2214; --warn-ink: #e8c28a; }
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+    body { background: var(--paper); color: var(--ink); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    button, input, textarea { font: inherit; color: inherit; }
+    svg { flex-shrink: 0; }
+    .view { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; }
+    .hidden { display: none !important; }
+    .head { display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 8px 8px 8px 6px; border-bottom: 1px solid var(--line); }
+    .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 12px; background: transparent; cursor: pointer; }
+    .icon-btn:hover { background: var(--hover); }
+    .icon-btn svg { width: 22px; height: 22px; }
+    .icon-btn:disabled { opacity: .35; }
+    .head-text { flex: 1; min-width: 0; }
+    .head-text b { display: block; overflow: hidden; font-size: 16px; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
+    .head-text span { display: block; margin-top: 2px; overflow: hidden; color: var(--muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+    .dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--faint); vertical-align: 1px; }
+    .dot.on { background: var(--blue); }
+    .notice { display: flex; align-items: center; gap: 10px; margin: 10px 12px 0; padding: 11px 13px; border-radius: 14px; background: var(--warn); color: var(--warn-ink); font-size: 12.5px; line-height: 1.5; }
+    .notice .grow { flex: 1; }
+    .btn { height: 38px; padding: 0 14px; border: 0; border-radius: 11px; color: #fff; background: var(--blue); font-size: 12.5px; font-weight: 750; cursor: pointer; white-space: nowrap; }
+    .list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 8px 20px; }
+    .section { margin: 14px 10px 6px; color: var(--faint); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .thread { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px; border: 0; border-radius: 14px; background: transparent; text-align: left; cursor: pointer; }
+    .thread:hover { background: var(--hover); }
+    .avatar { position: relative; width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: 14px; font-weight: 800; }
+    .avatar.all { border-radius: 14px; background: linear-gradient(145deg, #4a7dff, #2a4fc0); }
+    .avatar svg { width: 22px; height: 22px; }
+    .avatar.near::after { content: ""; position: absolute; right: 0; bottom: 0; width: 11px; height: 11px; border: 2px solid var(--paper); border-radius: 50%; background: var(--blue); }
+    .thread-main { flex: 1; min-width: 0; }
+    .thread-top, .thread-bottom { display: flex; align-items: center; gap: 8px; }
+    .thread-name { flex: 1; min-width: 0; overflow: hidden; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .thread-time { color: var(--faint); font-size: 10.5px; }
+    .thread-bottom { margin-top: 3px; }
+    .thread-preview { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+    .unread { min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 10px; color: #fff; background: var(--blue); font-size: 10.5px; font-weight: 800; }
+    .range { padding: 2px 7px; border-radius: 7px; color: var(--blue); background: var(--blue-soft); font-size: 10.5px; font-weight: 750; white-space: nowrap; }
+    .explain { margin: 8px 10px; padding: 16px; border: 1px dashed var(--line); border-radius: 16px; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+    .explain b { display: block; margin-bottom: 4px; color: var(--ink); font-size: 14px; }
+    .messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px 12px 18px; }
+    .msg { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 10px; }
+    .msg.mine { align-items: flex-end; }
+    .meta { margin: 0 4px 3px; color: var(--faint); font-size: 10.5px; }
+    .meta b { color: var(--ink); font-weight: 700; }
+    .bubble { max-width: 82%; padding: 9px 13px; border: 1px solid var(--bubble-line); border-radius: 16px 16px 16px 5px; background: var(--bubble); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+    .mine .bubble { border-color: var(--bubble-mine-line); border-radius: 16px 16px 5px 16px; background: var(--bubble-mine); }
+    .bubble img { display: block; max-width: 100%; max-height: 320px; margin: -3px -7px 4px; border-radius: 12px; }
+    .bubble audio { width: 240px; max-width: 100%; height: 38px; }
+    .file { display: flex; align-items: center; gap: 10px; }
+    .file-badge { width: 36px; height: 42px; display: grid; place-items: end center; padding-bottom: 6px; border-radius: 6px 12px 6px 6px; color: #fff; background: #7f8b85; font-size: 9px; font-weight: 800; }
+    .file button { padding: 6px 10px; border: 0; border-radius: 9px; color: var(--blue); background: var(--blue-soft); font-size: 12px; font-weight: 700; cursor: pointer; }
+    .status { margin: 3px 6px 0; color: var(--faint); font-size: 10.5px; }
+    .status.ok { color: var(--blue); }
+    .composer { display: flex; align-items: flex-end; gap: 6px; padding: 8px 8px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+    .composer textarea { flex: 1; min-height: 42px; max-height: 130px; padding: 10px 14px; resize: none; border: 1px solid var(--line); border-radius: 21px; outline: 0; background: var(--paper); font-size: 14px; line-height: 1.4; }
+    .composer textarea:focus { border-color: var(--blue); }
+    .round { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff; background: var(--blue); cursor: pointer; }
+    .round svg { width: 20px; height: 20px; }
+    .round.ghost { color: var(--muted); background: transparent; }
+    .recording { display: flex; flex: 1; align-items: center; gap: 10px; min-height: 42px; padding: 0 14px; border-radius: 21px; background: var(--blue-soft); color: var(--blue); font-size: 13px; font-weight: 700; }
+    .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--danger); animation: blink 1s infinite; }
+    @keyframes blink { 50% { opacity: .3; } }
+    .call { position: fixed; z-index: 20; top: 0; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 70px 20px max(40px, env(safe-area-inset-bottom)); color: #eef3ff; background: radial-gradient(circle at 50% 30%, #23366a, #0b1020 70%); }
+    .call-avatar { width: 116px; height: 116px; margin: 0 auto 18px; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: 38px; font-weight: 800; box-shadow: 0 0 0 12px rgba(255,255,255,.05); }
+    .call-name { font-size: 24px; font-weight: 750; text-align: center; }
+    .call-status { margin-top: 6px; color: rgba(238,243,255,.75); font-size: 13px; text-align: center; font-variant-numeric: tabular-nums; }
+    .call-note { margin-top: 10px; color: rgba(238,243,255,.55); font-size: 11.5px; text-align: center; }
+    .call-buttons { display: flex; gap: 22px; }
+    .call-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: inherit; font-size: 11px; cursor: pointer; }
+    .call-btn span { width: 60px; height: 60px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.14); }
+    .call-btn.on span { color: #0b1020; background: #eef3ff; }
+    .call-btn.end span { background: var(--danger); }
+    .call-btn.accept span { background: #2fb36d; }
+    .call-btn svg { width: 24px; height: 24px; }
+    .call-btn.end svg { transform: rotate(135deg); }
+    .toast { position: fixed; z-index: 30; left: 50%; bottom: 90px; max-width: calc(100vw - 32px); padding: 10px 15px; transform: translateX(-50%); border-radius: 12px; color: #f2f8f4; background: #1c2a44; font-size: 12.5px; opacity: 0; pointer-events: none; transition: opacity .2s; }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <section id="listView" class="view">
+    <div class="head">
+      <button id="toRooms" class="icon-btn" type="button" aria-label="Back to rooms"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="head-text"><b>Bluetooth chat</b><span id="meshStatus"><i class="dot"></i>Starting…</span></div>
+    </div>
+    <div id="setup" class="notice hidden"><span id="setupText" class="grow"></span><button id="setupButton" class="btn" type="button">Turn on</button></div>
+    <div id="threads" class="list"></div>
+  </section>
+
+  <section id="chatView" class="view hidden">
+    <div class="head">
+      <button id="toList" class="icon-btn" type="button" aria-label="Back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <span id="chatAvatar" class="avatar"></span>
+      <div class="head-text"><b id="chatName"></b><span id="chatSub"></span></div>
+      <button id="callButton" class="icon-btn" type="button" aria-label="Voice call"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div id="messages" class="messages"></div>
+    <form id="composer" class="composer">
+      <button id="attach" class="round ghost" type="button" aria-label="Send a photo or file"><svg viewBox="0 0 24 24" fill="none"><path d="m20 11.5-7.8 7.8a5 5 0 0 1-7.1-7.1l8.3-8.3a3.4 3.4 0 0 1 4.8 4.8l-8.3 8.3a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <input id="fileInput" type="file" class="hidden">
+      <textarea id="input" rows="1" placeholder="Message"></textarea>
+      <div id="recording" class="recording hidden"><span class="rec-dot"></span><span id="recTime" class="grow">0:00</span></div>
+      <button id="recCancel" class="round ghost hidden" type="button" aria-label="Discard recording"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button id="mic" class="round" type="button" aria-label="Record a voice message"><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <button id="send" class="round hidden" type="submit" aria-label="Send"><svg viewBox="0 0 24 24" fill="none"><path d="m4 4 17 8-17 8 2-7 8-1-8-1-2-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+    </form>
+  </section>
+
+  <section id="callView" class="call hidden" role="dialog" aria-label="Bluetooth call">
+    <div>
+      <div id="callAvatar" class="call-avatar">?</div>
+      <div id="callName" class="call-name"></div>
+      <div id="callStatus" class="call-status"></div>
+      <div class="call-note">Bluetooth voice call · works without Wi‑Fi or internet</div>
+    </div>
+    <div id="incomingButtons" class="call-buttons hidden">
+      <button id="decline" class="call-btn end" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>Decline</button>
+      <button id="accept" class="call-btn accept" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>Answer</button>
+    </div>
+    <div id="activeButtons" class="call-buttons">
+      <button id="mute" class="call-btn" type="button"><span><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>Mute</button>
+      <button id="speaker" class="call-btn" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M15.5 9a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>Speaker</button>
+      <button id="hangup" class="call-btn end" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>End</button>
+    </div>
+  </section>
+  <div id="toast" class="toast" role="status"></div>
+
+  <script>
+    // Older Android System WebView (Android 10/11 phones that never updated it) lacks replaceChildren (Chrome 86+).
+    if (!Element.prototype.replaceChildren) {
+      Element.prototype.replaceChildren = function (...nodes) {
+        while (this.firstChild) this.removeChild(this.firstChild);
+        this.append(...nodes);
+      };
+    }
+  </script>
+  <script>
+    (() => {
+      const bridge = window.HearthAndroid;
+      const $ = id => document.getElementById(id);
+      const COLORS = ['#3f8f6b', '#3e7bfa', '#c46a2f', '#8c5cf5', '#d0477a', '#2a9aa6', '#a3802a', '#5b6b8c'];
+      const ALL = 'all';
+      const READ_KEY = 'hearth.mesh.read.v1';
+      const MAX_FILE = 700 * 1024;
+      const ALL_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="m7 7 10 10-5 4V3l5 4L7 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const state = { mesh: {}, messages: [], byId: new Map(), thread: null, call: { state: 'idle' }, lastRead: {}, recording: false, recordStart: 0, recordTimer: null, toastTimer: null, rendered: '' };
+      try { state.lastRead = JSON.parse(localStorage.getItem(READ_KEY) || '{}') || {}; } catch (_) {}
+
+      function color(seed) {
+        let hash = 0;
+        for (const ch of String(seed || '')) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+        return COLORS[Math.abs(hash) % COLORS.length];
+      }
+      function initials(name) {
+        return (name || '?').trim().split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').toUpperCase() || '?';
+      }
+      function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+      function toast(text) {
+        const node = $('toast');
+        node.textContent = text;
+        node.classList.add('show');
+        clearTimeout(state.toastTimer);
+        state.toastTimer = setTimeout(() => node.classList.remove('show'), 2600);
+      }
+      function clock(seconds) {
+        const total = Math.max(0, Math.round(seconds || 0));
+        return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+      }
+      function timeLabel(timestamp) {
+        const date = new Date(Number(timestamp) || Date.now());
+        return date.toDateString() === new Date().toDateString()
+          ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+          : date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      }
+      function threadOf(message) {
+        if (message.mine) return message.to || ALL;
+        return message.to ? message.from : ALL;
+      }
+      function peer(id) {
+        return (state.mesh.peers || []).find(item => item.id === id);
+      }
+      function nameOf(id) {
+        if (id === ALL) return 'Everyone nearby';
+        const known = peer(id);
+        if (known) return known.name;
+        for (let i = state.messages.length - 1; i >= 0; i--) if (!state.messages[i].mine && state.messages[i].from === id) return state.messages[i].name || 'Someone';
+        return 'Someone';
+      }
+      function rangeLabel(item) {
+        if (!item) return 'Not in range';
+        if (item.direct) return 'Nearby';
+        return `${item.hops} hops away`;
+      }
+      function snippet(message) {
+        if (message.kind === 'voice') return `🎤 Voice message (${clock(message.duration)})`;
+        if (message.kind === 'image') return '📷 Photo';
+        if (message.kind === 'file') return `📎 ${(message.file && message.file.name) || 'File'}`;
+        return message.text || '';
+      }
+      function unread(thread) {
+        const since = state.lastRead[thread] || 0;
+        return state.messages.filter(message => !message.mine && threadOf(message) === thread && (message.receivedAt || message.createdAt) > since).length;
+      }
+      function markRead(thread) {
+        state.lastRead[thread] = Date.now();
+        try { localStorage.setItem(READ_KEY, JSON.stringify(state.lastRead)); } catch (_) {}
+      }
+
+      /* ---------- Data from the app ---------- */
+      function loadAll() {
+        if (!bridge) return;
+        try { state.mesh = JSON.parse(bridge.meshState() || '{}'); } catch (_) {}
+        try {
+          state.messages = JSON.parse(bridge.meshMessages() || '[]');
+          state.byId = new Map(state.messages.map(message => [message.id, message]));
+        } catch (_) {}
+        if (state.mesh.call) onCall(state.mesh.call);
+        render();
+      }
+      window.meshEvent = event => {
+        if (!event) return;
+        if (event.type === 'state') {
+          const call = state.mesh.call;
+          state.mesh = event.state || {};
+          if (call) state.mesh.call = call;
+          render();
+        } else if (event.type === 'message' && event.message) {
+          const message = event.message;
+          if (!state.byId.has(message.id)) {
+            state.messages.push(message);
+            state.byId.set(message.id, message);
+            const thread = threadOf(message);
+            if (thread !== state.thread) toast(`${message.name || 'Someone'}${message.to ? ' (private)' : ''}: ${snippet(message)}`);
+          }
+          render();
+        } else if (event.type === 'delivered') {
+          const message = state.byId.get(event.ref);
+          if (message) { message.status = 'delivered'; render(); }
+        } else if (event.type === 'call') {
+          onCall(event);
+        }
+      };
+
+      /* ---------- Rendering ---------- */
+      function render() {
+        renderStatus();
+        if (state.thread) renderChat(); else renderThreads();
+      }
+      function renderStatus() {
+        const mesh = state.mesh;
+        const peers = mesh.peers || [];
+        const direct = peers.filter(item => item.direct).length;
+        let text = mesh.status || 'Starting…';
+        if (mesh.running) text = `${mesh.longRange ? 'On · long range' : 'On'} · ${peers.length} nearby${peers.length ? ` (${direct} direct)` : ''}`;
+        $('meshStatus').innerHTML = `<i class="dot${mesh.running ? ' on' : ''}"></i>`;
+        $('meshStatus').append(document.createTextNode(text));
+        let setup = '';
+        let action = 'Turn on';
+        if (mesh.permission === false) setup = 'Allow “Nearby devices” so this phone can find people over Bluetooth.';
+        else if (mesh.bluetooth === false) setup = 'Bluetooth is off. Turn it on to chat with people nearby.';
+        else if (mesh.locationOff) { setup = 'This Android version needs Location turned on to find Bluetooth devices.'; action = 'Settings'; }
+        $('setup').classList.toggle('hidden', !setup);
+        $('setupText').textContent = setup;
+        $('setupButton').textContent = action;
+      }
+      function renderThreads() {
+        const peers = (state.mesh.peers || []).slice();
+        const dmThreads = new Set(state.messages.filter(message => threadOf(message) !== ALL).map(threadOf));
+        peers.forEach(item => dmThreads.add(item.id));
+        const items = [...dmThreads].map(id => {
+          const last = [...state.messages].reverse().find(message => threadOf(message) === id);
+          return { id, name: nameOf(id), last, unread: unread(id), peer: peer(id) };
+        }).sort((a, b) => (b.unread > 0) - (a.unread > 0) || ((b.last ? b.last.createdAt : 0) - (a.last ? a.last.createdAt : 0)) || (!!b.peer - !!a.peer) || a.name.localeCompare(b.name));
+        const key = JSON.stringify([items.map(item => [item.id, item.name, item.last && item.last.id, item.unread, item.peer && item.peer.direct, item.peer && item.peer.hops]), unread(ALL), state.messages.length]);
+        if (key === state.rendered) return;
+        state.rendered = key;
+        const nodes = [];
+        const allLast = [...state.messages].reverse().find(message => threadOf(message) === ALL);
+        nodes.push(threadRow({ id: ALL, name: 'Everyone nearby', last: allLast, unread: unread(ALL), preview: allLast ? `${allLast.mine ? 'You' : allLast.name}: ${snippet(allLast)}` : 'Public chat · everyone in Bluetooth range' }));
+        nodes.push(el('div', 'section', `People · ${(state.mesh.peers || []).length} nearby`));
+        if (!items.length) {
+          const explain = el('div', 'explain');
+          explain.append(el('b', '', 'Nobody nearby yet'));
+          explain.append(document.createTextNode('People appear here when they open Hearth with Bluetooth on. Every phone relays messages for the others, so the more people nearby, the further messages travel.'));
+          nodes.push(explain);
+        }
+        for (const item of items) {
+          nodes.push(threadRow({ id: item.id, name: item.name, last: item.last, unread: item.unread, peer: item.peer,
+            preview: item.last ? `${item.last.mine ? 'You: ' : ''}${snippet(item.last)}` : 'Say hello privately' }));
+        }
+        $('threads').replaceChildren(...nodes);
+      }
+      function threadRow(item) {
+        const row = el('button', 'thread');
+        row.type = 'button';
+        const avatar = el('span', `avatar${item.id === ALL ? ' all' : item.peer ? ' near' : ''}`);
+        if (item.id === ALL) avatar.innerHTML = ALL_ICON;
+        else { avatar.textContent = initials(item.name); avatar.style.background = color(item.id); }
+        const main = el('span', 'thread-main');
+        const top = el('span', 'thread-top');
+        top.append(el('span', 'thread-name', item.name), el('span', 'thread-time', item.last ? timeLabel(item.last.createdAt) : ''));
+        const bottom = el('span', 'thread-bottom');
+        bottom.append(el('span', 'thread-preview', item.preview));
+        if (item.id !== ALL) bottom.append(el('span', 'range', rangeLabel(item.peer)));
+        if (item.unread) bottom.append(el('span', 'unread', String(item.unread)));
+        main.append(top, bottom);
+        row.append(avatar, main);
+        row.addEventListener('click', () => openThread(item.id));
+        return row;
+      }
+      function openThread(id) {
+        state.thread = id;
+        state.rendered = '';
+        $('listView').classList.add('hidden');
+        $('chatView').classList.remove('hidden');
+        $('messages').replaceChildren();
+        renderChat(true);
+      }
+      function closeThread() {
+        state.thread = null;
+        state.rendered = '';
+        $('chatView').classList.add('hidden');
+        $('listView').classList.remove('hidden');
+        renderThreads();
+      }
+      function renderChat(scroll) {
+        const id = state.thread;
+        const item = id === ALL ? null : peer(id);
+        $('chatName').textContent = nameOf(id);
+        const avatar = $('chatAvatar');
+        avatar.className = `avatar${id === ALL ? ' all' : item ? ' near' : ''}`;
+        if (id === ALL) { avatar.innerHTML = ALL_ICON; avatar.style.background = ''; }
+        else { avatar.textContent = initials(nameOf(id)); avatar.style.background = color(id); }
+        $('chatSub').textContent = id === ALL
+          ? `Public · ${(state.mesh.peers || []).length} people in range`
+          : item ? `${rangeLabel(item)}${item.secure ? ' · end-to-end encrypted' : ' · waiting for their key'}` : 'Not in range · messages are delivered when they come back';
+        $('callButton').classList.toggle('hidden', id === ALL);
+        $('callButton').disabled = !(item && item.direct);
+        $('input').placeholder = id === ALL ? 'Message everyone nearby' : `Message ${nameOf(id)}`;
+        const list = state.messages.filter(message => threadOf(message) === id);
+        const key = JSON.stringify(list.map(message => [message.id, message.status]));
+        const box = $('messages');
+        const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+        if (key !== state.rendered) {
+          state.rendered = key;
+          if (!list.length) {
+            const explain = el('div', 'explain');
+            explain.append(el('b', '', id === ALL ? 'Say hi to everyone nearby' : `Private chat with ${nameOf(id)}`));
+            explain.append(document.createTextNode(id === ALL
+              ? 'Messages here reach everyone in Bluetooth range, and hop through their phones to people further away.'
+              : 'Only you two can read these messages. Phones in between pass them along but cannot open them.'));
+            box.replaceChildren(explain);
+          } else {
+            box.replaceChildren(...list.map(messageNode));
+          }
+        }
+        if (scroll || atBottom) box.scrollTop = box.scrollHeight;
+        markRead(id);
+      }
+      function messageNode(message) {
+        const node = el('div', `msg${message.mine ? ' mine' : ''}`);
+        const meta = el('div', 'meta');
+        if (!message.mine && state.thread === ALL) meta.append(el('b', '', message.name || 'Someone'), document.createTextNode(' · '));
+        meta.append(document.createTextNode(timeLabel(message.createdAt)));
+        const bubble = el('div', 'bubble');
+        const file = message.file;
+        if (message.kind === 'image' && file && file.data) {
+          const image = el('img');
+          image.src = `data:${file.type || 'image/jpeg'};base64,${file.data}`;
+          image.alt = 'Photo';
+          bubble.append(image);
+        } else if (message.kind === 'voice' && file && file.data) {
+          const audio = el('audio');
+          audio.controls = true;
+          audio.preload = 'metadata';
+          audio.src = `data:${file.type || 'audio/mp4'};base64,${file.data}`;
+          bubble.append(audio);
+        } else if (message.kind === 'file' && file && file.data) {
+          const row = el('div', 'file');
+          const ext = ((file.name || '').split('.').pop() || 'file').slice(0, 4).toUpperCase();
+          const save = el('button', '', 'Save');
+          save.type = 'button';
+          save.addEventListener('click', () => {
+            const result = bridge.meshSaveFile(file.name || 'file', file.type || 'application/octet-stream', file.data);
+            toast(result || 'Saved to Downloads.');
+          });
+          const name = el('span', '', file.name || 'File');
+          name.style.flex = '1';
+          row.append(el('span', 'file-badge', ext), name, save);
+          bubble.append(row);
+        }
+        if (message.text) bubble.append(document.createTextNode(message.text));
+        node.append(meta, bubble);
+        if (message.mine) {
+          const status = message.status === 'delivered' ? 'Delivered' : message.status === 'waiting' ? 'Waiting for someone in range' : 'Sent to the mesh';
+          node.append(el('div', `status${message.status === 'delivered' ? ' ok' : ''}`, message.to ? status : message.status === 'waiting' ? status : ''));
+        }
+        return node;
+      }
+
+      /* ---------- Sending ---------- */
+      function send(request) {
+        let result;
+        try { result = JSON.parse(bridge.meshSend(JSON.stringify(request)) || '{}'); } catch (_) { result = { error: 'Could not send.' }; }
+        if (result.error) { toast(result.error); return false; }
+        state.messages.push(result);
+        state.byId.set(result.id, result);
+        render();
+        $('messages').scrollTop = $('messages').scrollHeight;
+        return true;
+      }
+      function to() { return state.thread === ALL ? '' : state.thread; }
+      $('composer').addEventListener('submit', event => {
+        event.preventDefault();
+        const text = $('input').value.trim();
+        if (!text) return;
+        if (send({ to: to(), kind: 'text', text })) { $('input').value = ''; updateButtons(); }
+      });
+      $('input').addEventListener('keydown', event => {
+        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); $('composer').requestSubmit(); }
+      });
+      function updateButtons() {
+        const hasText = !!$('input').value.trim();
+        $('send').classList.toggle('hidden', !hasText || state.recording);
+        $('mic').classList.toggle('hidden', hasText && !state.recording);
+        $('input').style.height = 'auto';
+        $('input').style.height = `${Math.min($('input').scrollHeight, 130)}px`;
+      }
+      $('input').addEventListener('input', updateButtons);
+      $('attach').addEventListener('click', () => $('fileInput').click());
+      $('fileInput').addEventListener('change', async () => {
+        const file = $('fileInput').files && $('fileInput').files[0];
+        $('fileInput').value = '';
+        if (!file) return;
+        try {
+          if (file.type.startsWith('image/')) {
+            const data = await shrinkImage(file);
+            send({ to: to(), kind: 'image', text: '', file: { name: file.name, type: 'image/jpeg', data } });
+          } else {
+            if (file.size > MAX_FILE) return toast('Bluetooth can carry files up to 700 KB. Use a Wi‑Fi or hotspot room for bigger files.');
+            send({ to: to(), kind: 'file', text: '', file: { name: file.name, type: file.type || 'application/octet-stream', data: await toBase64(file) } });
+          }
+        } catch (_) { toast('Could not read that file.'); }
+      });
+      function toBase64(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+      /** Photos are resized so they cross Bluetooth in seconds (about 60–150 KB). */
+      async function shrinkImage(file) {
+        const url = URL.createObjectURL(file);
+        try {
+          const image = await new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = url; });
+          let quality = 0.72;
+          let edge = 1024;
+          for (let attempt = 0; attempt < 5; attempt++) {
+            const scale = Math.min(1, edge / Math.max(image.naturalWidth, image.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(image.naturalWidth * scale);
+            canvas.height = Math.round(image.naturalHeight * scale);
+            canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+            const data = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+            if (data.length * 0.75 <= 180 * 1024) return data;
+            edge = Math.round(edge * 0.75);
+            quality = Math.max(0.5, quality - 0.08);
+          }
+          throw new Error('too large');
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+
+      /* ---------- Voice messages ---------- */
+      $('mic').addEventListener('click', () => {
+        if (state.recording) return stopRecording(false);
+        const error = bridge.noteStart();
+        if (error === 'permission') return toast('Allow microphone access, then tap the mic again.');
+        if (error) return toast(error);
+        state.recording = true;
+        state.recordStart = Date.now();
+        $('input').classList.add('hidden');
+        $('attach').classList.add('hidden');
+        $('recording').classList.remove('hidden');
+        $('recCancel').classList.remove('hidden');
+        $('mic').innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="m4 4 17 8-17 8 2-7 8-1-8-1-2-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+        state.recordTimer = setInterval(() => {
+          const seconds = (Date.now() - state.recordStart) / 1000;
+          $('recTime').textContent = `${clock(seconds)} · max 1:00`;
+          if (seconds >= 60) stopRecording(false);
+        }, 250);
+      });
+      $('recCancel').addEventListener('click', () => stopRecording(true));
+      function stopRecording(discard) {
+        if (!state.recording) return;
+        state.recording = false;
+        clearInterval(state.recordTimer);
+        $('input').classList.remove('hidden');
+        $('attach').classList.remove('hidden');
+        $('recording').classList.add('hidden');
+        $('recCancel').classList.add('hidden');
+        $('mic').innerHTML = '<svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+        let result = {};
+        try { result = JSON.parse(bridge.noteStop(discard) || '{}'); } catch (_) {}
+        updateButtons();
+        if (discard) return;
+        if (result.error || !result.data) return toast(result.error || 'Recording failed.');
+        send({ to: to(), kind: 'voice', text: '', duration: result.duration, file: { name: 'voice.m4a', type: result.type, data: result.data } });
+      }
+
+      /* ---------- Calls ---------- */
+      let callClock = null;
+      function onCall(call) {
+        state.call = call;
+        state.mesh.call = call;
+        const view = $('callView');
+        if (call.state === 'idle' || call.state === 'ended') {
+          view.classList.add('hidden');
+          clearInterval(callClock);
+          callClock = null;
+          if (call.state === 'ended') {
+            const reasons = { declined: 'Call declined', busy: 'They are on another call', missed: 'Missed call', 'no answer': 'No answer', 'connection lost': 'Call dropped — out of Bluetooth range' };
+            toast(call.duration ? `Call ended · ${clock(call.duration)}` : (reasons[call.reason] || 'Call ended'));
+          }
+          return;
+        }
+        view.classList.remove('hidden');
+        $('callName').textContent = call.name || 'Someone';
+        $('callAvatar').textContent = initials(call.name);
+        $('callAvatar').style.background = color(call.peer);
+        $('incomingButtons').classList.toggle('hidden', call.state !== 'incoming');
+        $('activeButtons').classList.toggle('hidden', call.state === 'incoming');
+        $('mute').classList.toggle('on', !!call.muted);
+        $('speaker').classList.toggle('on', !!call.speaker);
+        const status = () => {
+          if (call.state === 'incoming') return 'Incoming Bluetooth call…';
+          if (call.state === 'ringing') return 'Calling…';
+          return `${clock((Date.now() - call.startedAt) / 1000)}${call.codec ? ` · ${call.codec}` : ''}`;
+        };
+        $('callStatus').textContent = status();
+        clearInterval(callClock);
+        callClock = setInterval(() => { $('callStatus').textContent = status(); }, 1000);
+      }
+      $('callButton').addEventListener('click', () => {
+        const error = bridge.meshCall(state.thread, nameOf(state.thread));
+        if (error) toast(error);
+      });
+      $('accept').addEventListener('click', () => bridge.meshAnswer(true));
+      $('decline').addEventListener('click', () => bridge.meshAnswer(false));
+      $('hangup').addEventListener('click', () => bridge.meshHangup());
+      $('mute').addEventListener('click', () => bridge.meshMute(!state.call.muted));
+      $('speaker').addEventListener('click', () => bridge.meshSpeaker(!state.call.speaker));
+
+      /* ---------- Navigation ---------- */
+      $('toRooms').addEventListener('click', () => { location.href = 'lobby.html'; });
+      $('toList').addEventListener('click', closeThread);
+      $('setupButton').addEventListener('click', () => {
+        if (state.mesh.locationOff) bridge.openLocationSettings();
+        else bridge.meshEnable();
+      });
+      window.hearthBack = () => {
+        if (state.recording) { stopRecording(true); return true; }
+        if (state.thread) { closeThread(); return true; }
+        return false;
+      };
+
+      if (!bridge) {
+        document.body.append(el('p', 'explain', 'Open this screen inside the Hearth Chat app.'));
+        return;
+      }
+      loadAll();
+      if (!state.mesh.running && state.mesh.permission === false) bridge.meshEnable();
+      setInterval(() => {
+        try {
+          const call = state.mesh.call;
+          state.mesh = JSON.parse(bridge.meshState() || '{}');
+          if (!state.mesh.call && call) state.mesh.call = call;
+          render();
+        } catch (_) {}
+      }, 3000);
+    })();
+  </script>
+</body>
+</html>
