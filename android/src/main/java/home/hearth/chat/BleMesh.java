@@ -12,7 +12,9 @@ import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.le.AdvertiseCallback;
 import android.bluetooth.le.AdvertiseData;
+import android.bluetooth.le.AdvertiseSettings;
 import android.bluetooth.le.AdvertisingSet;
 import android.bluetooth.le.AdvertisingSetCallback;
 import android.bluetooth.le.AdvertisingSetParameters;
@@ -157,8 +159,18 @@ final class BleMesh {
     private BluetoothGattCharacteristic serverCharacteristic;
     private BluetoothLeAdvertiser advertiser;
     private final List<AdvertisingSetCallback> advertising = new ArrayList<>();
+    private AdvertiseCallback plainAdvertising;
     private BluetoothLeScanner scanner;
     private ScanCallback scanCallback;
+    private ScanCallback codedScanCallback;
+    /* Diagnostics shown on the Bluetooth screen, so a phone that finds nobody can say why. */
+    private final Map<String, Long> sightings = new ConcurrentHashMap<>();
+    private final Map<String, Long> firstSeen = new ConcurrentHashMap<>();
+    private final Map<String, Long> retryAt = new ConcurrentHashMap<>();
+    private final Map<String, Integer> connectFailures = new ConcurrentHashMap<>();
+    private volatile String advertiseState = "starting";
+    private volatile String scanState = "starting";
+    private volatile String lastConnectError = "";
     private boolean longRange;
     private boolean persistQueued;
 
@@ -304,13 +316,16 @@ final class BleMesh {
             handler.removeCallbacks(maintenanceTask);
             try {
                 if (scanner != null && scanCallback != null) scanner.stopScan(scanCallback);
+                if (scanner != null && codedScanCallback != null) scanner.stopScan(codedScanCallback);
             } catch (Exception ignored) {
             }
             try {
                 if (advertiser != null) for (AdvertisingSetCallback callback : advertising) advertiser.stopAdvertisingSet(callback);
+                if (advertiser != null && plainAdvertising != null) advertiser.stopAdvertising(plainAdvertising);
             } catch (Exception ignored) {
             }
             advertising.clear();
+            plainAdvertising = null;
             for (Link link : new ArrayList<>(links.values())) closeLink(link);
             try {
                 if (server != null) server.close();
@@ -451,6 +466,7 @@ final class BleMesh {
     private void startAdvertising() {
         advertiser = adapter.getBluetoothLeAdvertiser();
         if (advertiser == null) {
+            advertiseState = "not supported";
             Log.w(TAG, "This phone cannot advertise; it can still connect to others");
             return;
         }
@@ -462,14 +478,32 @@ final class BleMesh {
                 .setIncludeDeviceName(false)
                 .setIncludeTxPowerLevel(false)
                 .build();
-        AdvertisingSetParameters legacy = new AdvertisingSetParameters.Builder()
-                .setLegacyMode(true)
+        // The normal advert uses the original advertising call: every Android version supports it, while the newer
+        // advertising-set call never completes on some Android 11 Bluetooth stacks, leaving the phone invisible.
+        AdvertiseSettings settings = new AdvertiseSettings.Builder()
+                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
                 .setConnectable(true)
-                .setScannable(true)
-                .setInterval(AdvertisingSetParameters.INTERVAL_LOW)
-                .setTxPowerLevel(AdvertisingSetParameters.TX_POWER_HIGH)
+                .setTimeout(0)
                 .build();
-        startSet(legacy, data);
+        plainAdvertising = new AdvertiseCallback() {
+            @Override public void onStartSuccess(AdvertiseSettings settingsInEffect) {
+                advertiseState = "ok";
+                emitState();
+            }
+
+            @Override public void onStartFailure(int errorCode) {
+                Log.w(TAG, "Advertising failed: " + errorCode);
+                advertiseState = "failed (" + errorCode + ")";
+                emitState();
+            }
+        };
+        try {
+            advertiser.startAdvertising(settings, data, plainAdvertising);
+        } catch (Exception e) {
+            Log.w(TAG, "Could not advertise", e);
+            advertiseState = "failed (" + e.getClass().getSimpleName() + ")";
+        }
         if (longRange) {
             // Long range: coded PHY trades speed for distance (often several hundred metres in the open).
             AdvertisingSetParameters coded = new AdvertisingSetParameters.Builder()
@@ -488,7 +522,7 @@ final class BleMesh {
     private void startSet(AdvertisingSetParameters parameters, AdvertiseData data) {
         AdvertisingSetCallback callback = new AdvertisingSetCallback() {
             @Override public void onAdvertisingSetStarted(AdvertisingSet set, int txPower, int status) {
-                if (status != AdvertisingSetCallback.ADVERTISE_SUCCESS) Log.w(TAG, "Advertising failed: " + status);
+                if (status != AdvertisingSetCallback.ADVERTISE_SUCCESS) Log.w(TAG, "Long-range advertising failed: " + status);
             }
         };
         try {
@@ -499,15 +533,36 @@ final class BleMesh {
         }
     }
 
+    /**
+     * Scans with plain (legacy) settings, which every phone handles; some chipsets miss ordinary adverts in extended
+     * scan mode. Phones with long-range support run a second scan just for long-range (coded PHY) adverts.
+     */
     private void startScanning() {
         scanner = adapter.getBluetoothLeScanner();
-        if (scanner == null) return;
-        ScanSettings.Builder settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED);
-        if (adapter.isLeExtendedAdvertisingSupported()) {
-            settings.setLegacy(false).setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED);
+        if (scanner == null) {
+            scanState = "not supported";
+            return;
         }
         List<ScanFilter> filters = Collections.singletonList(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(SERVICE)).build());
-        scanCallback = new ScanCallback() {
+        ScanSettings plain = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
+        scanCallback = newScanCallback(filters, plain, true);
+        scanner.startScan(filters, plain, scanCallback);
+        scanState = "ok";
+        if (longRange) {
+            try {
+                ScanSettings coded = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+                        .setLegacy(false).setPhy(BluetoothDevice.PHY_LE_CODED).build();
+                codedScanCallback = newScanCallback(filters, coded, false);
+                scanner.startScan(filters, coded, codedScanCallback);
+            } catch (Exception e) {
+                Log.w(TAG, "Long-range scan not available", e);
+                codedScanCallback = null;
+            }
+        }
+    }
+
+    private ScanCallback newScanCallback(List<ScanFilter> filters, ScanSettings settings, boolean main) {
+        return new ScanCallback() {
             @Override public void onScanResult(int callbackType, ScanResult result) {
                 handler.post(() -> onFound(result));
             }
@@ -520,17 +575,21 @@ final class BleMesh {
 
             @Override public void onScanFailed(int errorCode) {
                 Log.w(TAG, "Scan failed: " + errorCode);
+                if (main) {
+                    scanState = "failed (" + errorCode + ")";
+                    emitState();
+                }
+                ScanCallback self = this;
                 handler.postDelayed(() -> {
-                    if (running) {
-                        try {
-                            scanner.startScan(filters, settings.build(), scanCallback);
-                        } catch (Exception ignored) {
-                        }
+                    if (!running) return;
+                    try {
+                        scanner.startScan(filters, settings, self);
+                        if (main) scanState = "ok";
+                    } catch (Exception ignored) {
                     }
                 }, 5000);
             }
         };
-        scanner.startScan(filters, settings.build(), scanCallback);
     }
 
     private void onFound(ScanResult result) {
@@ -541,11 +600,19 @@ final class BleMesh {
         String shortId = hex(data).substring(0, 12);
         String mine = nodeId.substring(0, 12);
         if (shortId.equals(mine)) return;
-        // Only the phone with the lower id connects, so every pair of phones has one link.
-        if (shortId.compareTo(mine) < 0) return;
-        for (Link link : links.values()) {
-            if (shortId.equals(link.shortId) || (!link.nodeId.isEmpty() && link.nodeId.startsWith(shortId))) return;
+        long now = System.currentTimeMillis();
+        sightings.put(shortId, now);
+        Long first = firstSeen.get(shortId);
+        if (first == null || now - first > 120_000 && !hasLinkTo(shortId)) {
+            first = now;
+            firstSeen.put(shortId, now);
         }
+        if (hasLinkTo(shortId)) return;
+        // Normally only the phone with the lower id connects, so every pair of phones has one link. If that phone
+        // has not managed it after a while (it may be unable to see us), this phone connects instead.
+        if (shortId.compareTo(mine) < 0 && now - first < 12_000) return;
+        Long wait = retryAt.get(shortId);
+        if (wait != null && now < wait) return;
         if (links.size() >= MAX_LINKS) return;
         String key = "c:" + result.getDevice().getAddress();
         if (links.containsKey(key)) return;
@@ -554,12 +621,31 @@ final class BleMesh {
         link.device = result.getDevice();
         link.coded = result.getPrimaryPhy() == BluetoothDevice.PHY_LE_CODED;
         links.put(key, link);
-        int phy = link.coded ? BluetoothDevice.PHY_LE_CODED_MASK : BluetoothDevice.PHY_LE_1M_MASK;
+        // Offer the normal 1M PHY too: some phones advertise long range but cannot hold a long-range connection.
+        int phy = BluetoothDevice.PHY_LE_1M_MASK | (link.coded ? BluetoothDevice.PHY_LE_CODED_MASK : 0);
         try {
             link.gatt = result.getDevice().connectGatt(context, false, new CentralCallback(link), BluetoothDevice.TRANSPORT_LE, phy, handler);
         } catch (Exception e) {
             links.remove(key);
+            connectFailed(shortId, e.getClass().getSimpleName());
         }
+    }
+
+    private boolean hasLinkTo(String shortId) {
+        for (Link link : links.values()) {
+            if (shortId.equals(link.shortId) || (!link.nodeId.isEmpty() && link.nodeId.startsWith(shortId))) return true;
+        }
+        return false;
+    }
+
+    /** Backs off 2 s, 4 s, 8 s… (up to 30 s) after each failed attempt, instead of retrying on every advert. */
+    private void connectFailed(String shortId, String reason) {
+        if (shortId == null || shortId.isEmpty()) return;
+        int failures = connectFailures.containsKey(shortId) ? connectFailures.get(shortId) + 1 : 1;
+        connectFailures.put(shortId, failures);
+        retryAt.put(shortId, System.currentTimeMillis() + Math.min(30_000L, 1000L << Math.min(failures, 5)));
+        lastConnectError = reason;
+        emitState();
     }
 
     /* ---------- GATT client (central side) ---------- */
@@ -578,6 +664,7 @@ final class BleMesh {
                     gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
                     if (!gatt.requestMtu(517)) gatt.discoverServices();
                 } else {
+                    if (link.nodeId.isEmpty()) connectFailed(link.shortId, "error " + status);
                     dropLink(link);
                     try {
                         gatt.close();
@@ -903,6 +990,8 @@ final class BleMesh {
         }
         link.nodeId = id;
         link.shortId = id.substring(0, 12);
+        connectFailures.remove(link.shortId);
+        retryAt.remove(link.shortId);
         onAnnounce(id, 1, hello);
         sendInventory(link);
     }
@@ -1187,6 +1276,15 @@ final class BleMesh {
             int direct = 0;
             for (Link link : links.values()) if (link.ready && !link.nodeId.isEmpty()) direct++;
             state.put("links", direct);
+            long now = System.currentTimeMillis();
+            int seen = 0;
+            for (Map.Entry<String, Long> sighting : sightings.entrySet()) {
+                if (now - sighting.getValue() < 30_000 && !hasLinkTo(sighting.getKey())) seen++;
+            }
+            state.put("seen", seen);
+            state.put("advertising", advertiseState);
+            state.put("scanning", scanState);
+            state.put("lastError", lastConnectError);
         } catch (JSONException ignored) {
         }
         return state;

@@ -276,6 +276,14 @@
         const direct = peers.filter(item => item.direct).length;
         let text = mesh.status || 'Starting…';
         if (mesh.running) text = `${mesh.longRange ? 'On · long range' : 'On'} · ${peers.length} nearby${peers.length ? ` (${direct} direct)` : ''}`;
+        // Nobody connected yet: say which step is stuck, so a phone that finds nobody can tell why.
+        if (mesh.running && !direct) {
+          const failed = value => String(value || '').startsWith('failed') || value === 'not supported';
+          if (failed(mesh.advertising)) text += ` · others can't see this phone (advertising ${mesh.advertising})`;
+          else if (failed(mesh.scanning)) text += ` · can't search (scan ${mesh.scanning})`;
+          else if (mesh.seen > 0) text += ` · found ${mesh.seen}, connecting…${mesh.lastError ? ` (last try: ${mesh.lastError})` : ''}`;
+          else if (!peers.length) text += ' · searching…';
+        }
         $('meshStatus').innerHTML = `<i class="dot${mesh.running ? ' on' : ''}"></i>`;
         $('meshStatus').append(document.createTextNode(text));
         let setup = '';
