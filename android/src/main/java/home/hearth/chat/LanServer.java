@@ -63,14 +63,198 @@ final class LanServer {
     private final Map<String, JSONObject> peers = new HashMap<>();
     private final List<JSONObject> signals = new ArrayList<>();
     private long nextSignal = 1;
+    private final RoomInfo roomInfo;
+    private final RoomHub hub;
 
-    LanServer(Context context) {
+    /** Who this room is, and which other rooms the host phone can see on the Wi-Fi. */
+    interface RoomInfo {
+        String id();
+
+        String name();
+
+        JSONArray otherRooms();
+    }
+
+    LanServer(Context context, RoomInfo roomInfo) {
         this.context = context.getApplicationContext();
+        this.roomInfo = roomInfo;
         File store = this.context.getFilesDir();
         mediaDirectory = new File(store, "media");
         messagesFile = new File(store, "messages.json");
         mediaDirectory.mkdirs();
         loadMessages();
+        hub = new RoomHub(new HubHost(), clients);
+    }
+
+    private final class HubHost implements RoomHub.Host {
+        @Override public void touchPeer(String device, String name, boolean typing, boolean busy) {
+            updatePeer(device, name, typing, busy);
+        }
+
+        @Override public void keepAlive(String device) {
+            synchronized (peerLock) {
+                JSONObject peer = peers.get(device);
+                if (peer != null) {
+                    try {
+                        peer.put("lastSeen", System.currentTimeMillis());
+                    } catch (JSONException ignored) {
+                    }
+                }
+            }
+        }
+
+        @Override public void dropPeer(String device) {
+            synchronized (peerLock) {
+                peers.remove(device);
+            }
+        }
+
+        @Override public String peersFingerprint() {
+            StringBuilder out = new StringBuilder();
+            JSONArray online = onlinePeers();
+            List<String> rows = new ArrayList<>();
+            for (int i = 0; i < online.length(); i++) {
+                JSONObject peer = online.optJSONObject(i);
+                rows.add(peer.optString("device") + "|" + peer.optString("name") + "|" + peer.optBoolean("typing") + "|" + peer.optBoolean("busy"));
+            }
+            Collections.sort(rows);
+            for (String row : rows) out.append(row).append('\n');
+            return out.toString();
+        }
+
+        @Override public JSONArray onlinePeers() {
+            return LanServer.this.onlinePeers();
+        }
+
+        @Override public void relaySignal(JSONObject body) {
+            try {
+                queueSignal(body);
+            } catch (JSONException ignored) {
+            }
+        }
+
+        @Override public void postCallLog(JSONObject call, String text) {
+            postSystemCall(call, text);
+        }
+    }
+
+    private void updatePeer(String device, String name, boolean typing, boolean busy) {
+        if (device == null || device.isEmpty()) return;
+        synchronized (peerLock) {
+            try {
+                JSONObject peer = new JSONObject();
+                peer.put("device", device);
+                peer.put("name", name == null || name.isEmpty() ? "Someone" : name);
+                peer.put("typing", typing);
+                peer.put("busy", busy);
+                peer.put("lastSeen", System.currentTimeMillis());
+                peers.put(device, peer);
+            } catch (JSONException ignored) {
+            }
+        }
+    }
+
+    /** Copies of the people online (expired heartbeats removed), without their timestamps. */
+    private JSONArray onlinePeers() {
+        JSONArray online = new JSONArray();
+        long now = System.currentTimeMillis();
+        synchronized (peerLock) {
+            Iterator<Map.Entry<String, JSONObject>> iterator = peers.entrySet().iterator();
+            while (iterator.hasNext()) {
+                JSONObject peer = iterator.next().getValue();
+                if (now - peer.optLong("lastSeen") > PEER_TIMEOUT_MS) {
+                    iterator.remove();
+                    continue;
+                }
+                try {
+                    JSONObject copy = new JSONObject();
+                    copy.put("device", peer.optString("device"));
+                    copy.put("name", peer.optString("name"));
+                    copy.put("typing", peer.optBoolean("typing"));
+                    copy.put("busy", peer.optBoolean("busy"));
+                    online.put(copy);
+                } catch (JSONException ignored) {
+                }
+            }
+        }
+        return online;
+    }
+
+    /** Stores a call signal for HTTP polling and pushes it straight to the target's live connection. */
+    private JSONObject queueSignal(JSONObject body) throws JSONException {
+        String from = clean(body.optString("from", ""), 80);
+        String to = clean(body.optString("to", ""), 80);
+        String type = clean(body.optString("type", ""), 24);
+        if (from.isEmpty() || to.isEmpty() || type.isEmpty()) return null;
+        JSONObject signal = new JSONObject();
+        synchronized (peerLock) {
+            signal.put("id", nextSignal++);
+            signal.put("from", from);
+            signal.put("fromName", clean(body.optString("fromName", "Someone"), 48));
+            signal.put("to", to);
+            signal.put("type", type);
+            signal.put("callId", clean(body.optString("callId", ""), 80));
+            Object data = body.opt("data");
+            if (data != null && data != JSONObject.NULL) signal.put("data", data);
+            signal.put("at", System.currentTimeMillis());
+            signals.add(signal);
+            if (signals.size() > 2000) signals.remove(0);
+        }
+        JSONObject push = new JSONObject();
+        push.put("t", "signal");
+        push.put("signal", signal);
+        push.put("now", System.currentTimeMillis());
+        hub.sendTo(to, push);
+        return signal;
+    }
+
+    /** Room-authored call log entries (group calls started and ended). */
+    private void postSystemCall(JSONObject call, String text) {
+        try {
+            JSONObject saved = new JSONObject();
+            synchronized (dataLock) {
+                saved.put("id", UUID.randomUUID().toString());
+                saved.put("sender", "room");
+                saved.put("senderName", roomName());
+                saved.put("text", text);
+                saved.put("createdAt", System.currentTimeMillis());
+                saved.put("kind", "call");
+                saved.put("call", call);
+                saved.put("seq", nextSequence++);
+                messages.put(saved);
+                persistMessages();
+            }
+            notifyMessage(saved);
+        } catch (JSONException ignored) {
+        }
+    }
+
+    /** Pushes a new or changed message to every live connection. Very large messages are fetched instead. */
+    private void notifyMessage(JSONObject message) {
+        try {
+            String json;
+            synchronized (dataLock) {
+                json = message.toString();
+            }
+            JSONObject push = new JSONObject();
+            if (json.length() > 64 * 1024) {
+                push.put("t", "sync");
+            } else {
+                push.put("t", "msg");
+                push.put("message", new JSONObject(json));
+            }
+            hub.broadcast(push);
+        } catch (JSONException ignored) {
+        }
+    }
+
+    String roomName() {
+        String name = roomInfo == null ? null : roomInfo.name();
+        return name == null || name.isEmpty() ? "Home room" : name;
+    }
+
+    int liveConnections() {
+        return hub.connectionCount();
     }
 
     boolean start() {
@@ -119,6 +303,7 @@ final class LanServer {
             if (secureListener != null) secureListener.close();
         } catch (IOException ignored) {
         }
+        hub.close();
         clients.shutdownNow();
     }
 
@@ -153,6 +338,10 @@ final class LanServer {
 
             if ("OPTIONS".equals(method)) {
                 respond(output, 204, "No Content", "text/plain", new byte[0]);
+                return;
+            }
+            if ("GET".equals(method) && "/ws".equals(path) && RoomHub.isUpgrade(headers)) {
+                hub.serve(client, input, output, headers);
                 return;
             }
             if ("GET".equals(method) || "HEAD".equals(method)) {
@@ -213,7 +402,11 @@ final class LanServer {
                 info.put("port", PORT);
                 info.put("url", "0.0.0.0".equals(ip) ? "" : "http://" + ip + ":" + PORT);
                 info.put("secureUrl", "0.0.0.0".equals(ip) || secureListener == null ? "" : "https://" + ip + ":" + SECURE_PORT);
-                info.put("room", "Home room");
+                info.put("room", roomName());
+                info.put("roomId", roomInfo == null ? "" : roomInfo.id());
+                info.put("online", onlinePeers().length());
+                info.put("call", hub.callSummary());
+                info.put("version", 3);
             } catch (JSONException ignored) {
             }
             respond(output, 200, "OK", "application/json; charset=utf-8", info.toString().getBytes(StandardCharsets.UTF_8), headOnly);
@@ -226,6 +419,15 @@ final class LanServer {
                 page = messagesAfter(after).toString().getBytes(StandardCharsets.UTF_8);
             }
             respond(output, 200, "OK", "application/json; charset=utf-8", page, headOnly);
+            return;
+        }
+        if ("/api/rooms".equals(path)) {
+            JSONObject result = new JSONObject();
+            try {
+                result.put("rooms", roomInfo == null ? new JSONArray() : roomInfo.otherRooms());
+            } catch (JSONException ignored) {
+            }
+            respond(output, 200, "OK", "application/json; charset=utf-8", result.toString().getBytes(StandardCharsets.UTF_8), headOnly);
             return;
         }
         if ("/api/presence".equals(path)) {
@@ -273,6 +475,7 @@ final class LanServer {
                     persistMessages();
                 }
             }
+            notifyMessage(saved);
             respond(output, 201, "Created", "application/json; charset=utf-8", snapshot(saved));
         } catch (JSONException e) {
             respond(output, 400, "Bad Request", "application/json", jsonError("Invalid message"));
@@ -336,6 +539,7 @@ final class LanServer {
                 messages.put(saved);
                 persistMessages();
             }
+            notifyMessage(saved);
             respond(output, 201, "Created", "application/json; charset=utf-8", snapshot(saved));
         } catch (JSONException e) {
             target.delete();
@@ -379,23 +583,11 @@ final class LanServer {
         JSONArray online = new JSONArray();
         JSONArray inbox = new JSONArray();
         long last = after;
+        updatePeer(device, clean(params.getOrDefault("name", "Someone"), 48),
+                "1".equals(params.get("typing")), "1".equals(params.get("busy")));
+        online = onlinePeers();
         synchronized (peerLock) {
             try {
-                if (!device.isEmpty()) {
-                    JSONObject peer = new JSONObject();
-                    peer.put("device", device);
-                    peer.put("name", clean(params.getOrDefault("name", "Someone"), 48));
-                    peer.put("typing", "1".equals(params.get("typing")));
-                    peer.put("busy", "1".equals(params.get("busy")));
-                    peer.put("lastSeen", now);
-                    peers.put(device, peer);
-                }
-                Iterator<Map.Entry<String, JSONObject>> peerIterator = peers.entrySet().iterator();
-                while (peerIterator.hasNext()) {
-                    JSONObject peer = peerIterator.next().getValue();
-                    if (now - peer.optLong("lastSeen") > PEER_TIMEOUT_MS) peerIterator.remove();
-                    else online.put(peer);
-                }
                 Iterator<JSONObject> signalIterator = signals.iterator();
                 while (signalIterator.hasNext()) {
                     JSONObject signal = signalIterator.next();
@@ -418,27 +610,10 @@ final class LanServer {
     }
 
     private void handleSignal(JSONObject body, OutputStream output) throws IOException {
-        String from = clean(body.optString("from", ""), 80);
-        String to = clean(body.optString("to", ""), 80);
-        String type = clean(body.optString("type", ""), 24);
-        if (from.isEmpty() || to.isEmpty() || type.isEmpty()) {
-            respond(output, 400, "Bad Request", "application/json", jsonError("Missing call details"));
-            return;
-        }
         try {
-            JSONObject signal = new JSONObject();
-            synchronized (peerLock) {
-                signal.put("id", nextSignal++);
-                signal.put("from", from);
-                signal.put("fromName", clean(body.optString("fromName", "Someone"), 48));
-                signal.put("to", to);
-                signal.put("type", type);
-                signal.put("callId", clean(body.optString("callId", ""), 80));
-                Object data = body.opt("data");
-                if (data != null) signal.put("data", data);
-                signal.put("at", System.currentTimeMillis());
-                signals.add(signal);
-                if (signals.size() > 2000) signals.remove(0);
+            if (queueSignal(body) == null) {
+                respond(output, 400, "Bad Request", "application/json", jsonError("Missing call details"));
+                return;
             }
             respond(output, 201, "Created", "application/json; charset=utf-8", "{\"ok\":true}".getBytes(StandardCharsets.UTF_8));
         } catch (JSONException e) {
@@ -487,6 +662,7 @@ final class LanServer {
                 saved.put("seq", nextSequence++);
                 persistMessages();
             }
+            notifyMessage(saved);
             respond(output, 200, "OK", "application/json; charset=utf-8", snapshot(saved));
         } catch (JSONException e) {
             respond(output, 400, "Bad Request", "application/json", jsonError("Invalid reaction"));
@@ -522,6 +698,7 @@ final class LanServer {
                 String name = mediaUrl.substring("/media/".length());
                 if (!name.contains("/") && !name.contains("..")) new File(mediaDirectory, name).delete();
             }
+            notifyMessage(saved);
             respond(output, 200, "OK", "application/json; charset=utf-8", snapshot(saved));
         } catch (JSONException e) {
             respond(output, 400, "Bad Request", "application/json", jsonError("Invalid request"));
@@ -715,7 +892,7 @@ final class LanServer {
         return result;
     }
 
-    private static String clean(String value, int maxLength) {
+    static String clean(String value, int maxLength) {
         if (value == null) return "";
         String cleaned = value.replace("\u0000", "").trim();
         return cleaned.length() > maxLength ? cleaned.substring(0, maxLength) : cleaned;

@@ -369,6 +369,46 @@
     .call-btn.accept span { background: #2fb36d; }
     .call-btn.end svg { transform: rotate(135deg); }
     .incoming-actions { display: flex; justify-content: center; gap: 44px; padding: 26px 16px max(40px, env(safe-area-inset-bottom)); }
+    /* Room switching and group calls */
+    .room-banner, .group-banner { display: flex; align-items: center; gap: 10px; padding: 9px 24px; border-bottom: 1px solid var(--line-soft); font-size: 12px; }
+    .room-banner { background: var(--mint-soft); color: var(--mint-dark); }
+    .group-banner { background: #1d3a30; color: #e7f7ee; }
+    .room-banner b, .group-banner b { font-weight: 750; }
+    .room-banner .grow, .group-banner .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .banner-btn { padding: 6px 11px; border: 0; border-radius: 9px; color: #fff; background: var(--mint-strong); font-size: 11.5px; font-weight: 750; cursor: pointer; white-space: nowrap; }
+    .banner-btn.ghost { color: inherit; background: transparent; padding: 6px 7px; font-size: 15px; }
+    .live-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #ff5a5f; box-shadow: 0 0 0 4px rgba(255,90,95,.2); animation: blink 1.4s infinite; }
+    .group-screen { position: fixed; z-index: 50; inset: 0; display: none; flex-direction: column; color: #eef6f1; background: #0b1512; }
+    .group-screen.visible { display: flex; }
+    .group-top { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
+    .group-title { flex: 1; min-width: 0; }
+    .group-title b { display: block; font-size: 15px; }
+    .group-title span { color: rgba(238,246,241,.65); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+    .group-top .icon-button { border-color: rgba(255,255,255,.14); color: #eef6f1; background: rgba(255,255,255,.06); }
+    .group-body { position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden; }
+    .group-grid { flex: 1; min-width: 0; min-height: 0; display: grid; gap: 8px; padding: 4px 12px 12px; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr)); }
+    .tile { position: relative; overflow: hidden; display: grid; place-items: center; min-width: 0; min-height: 0; border-radius: 14px; background: #15241f; box-shadow: inset 0 0 0 2px transparent; transition: box-shadow .15s; }
+    .tile.speaking { box-shadow: inset 0 0 0 3px #5fbe91; }
+    .tile canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #050b09; }
+    .tile .tile-avatar { width: 34%; max-width: 96px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: clamp(14px, 3vw, 30px); font-weight: 800; }
+    .tile-label { position: absolute; z-index: 1; left: 8px; bottom: 8px; max-width: calc(100% - 16px); display: flex; align-items: center; gap: 5px; padding: 3px 8px; overflow: hidden; border-radius: 8px; background: rgba(0,0,0,.5); font-size: 11.5px; white-space: nowrap; text-overflow: ellipsis; }
+    .tile-label svg { width: 13px; height: 13px; color: #ff7a7f; }
+    .tile.more { cursor: pointer; font-size: 22px; font-weight: 800; color: rgba(238,246,241,.85); }
+    .group-self { position: absolute; z-index: 3; right: 18px; bottom: 14px; width: clamp(90px, 18vw, 190px); aspect-ratio: 3 / 4; object-fit: cover; border: 2px solid rgba(255,255,255,.25); border-radius: 14px; background: #10201b; transform: scaleX(-1); box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+    .group-self.no-mirror { transform: none; }
+    .group-people { width: 280px; flex: 0 0 280px; overflow: auto; padding: 8px 12px; border-left: 1px solid rgba(255,255,255,.08); }
+    .group-people h3 { margin: 6px 4px 10px; color: rgba(238,246,241,.55); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+    .gp { display: flex; align-items: center; gap: 9px; padding: 6px 4px; font-size: 12.5px; }
+    .gp .peer-avatar::after { display: none; }
+    .gp .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gp svg { width: 15px; height: 15px; color: rgba(238,246,241,.6); }
+    .gp svg.off { color: #ff7a7f; }
+    .gp.speaking .grow { color: #8fe0b6; font-weight: 700; }
+    @media (max-width: 720px) {
+      .room-banner, .group-banner { padding: 8px 14px; font-size: 11.5px; }
+      .group-people { position: absolute; z-index: 4; inset: 0 0 0 auto; width: min(300px, 86vw); background: #0f1d19; }
+      .group-grid { gap: 6px; padding: 4px 8px 8px; }
+    }
     .hidden { display: none !important; }
     @media (max-width: 1100px) {
       .layout { grid-template-columns: 210px minmax(340px, 1fr); }
@@ -446,6 +486,8 @@
         <div class="chat-head">
           <div><h1 class="chat-title">Home room</h1><div class="chat-subtitle">Chat and share anything — photos, PDFs, documents, APKs, ZIPs…</div></div>
           <div class="head-actions">
+            <button id="roomsButton" class="pill-button hidden" type="button" aria-label="Rooms on this Wi-Fi"><svg viewBox="0 0 24 24" fill="none"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span class="pill-label">Rooms</span></button>
+            <button id="groupToggle" class="pill-button" type="button" aria-label="Group call"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.2a3 3 0 0 1 0 5.6M17.5 14.3A5.5 5.5 0 0 1 20.5 19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="pill-label">Group call</span></button>
             <button id="callToggle" class="pill-button" type="button" aria-label="Start a call"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span class="pill-label">Call</span></button>
             <button id="searchToggle" class="pill-button" type="button" aria-label="Search messages"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="pill-label">Search</span></button>
             <button id="filesToggle" class="pill-button" type="button" aria-label="Shared files"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span class="pill-label">Files</span><span id="filesCount" class="pill-count">0</span></button>
@@ -453,6 +495,8 @@
           </div>
         </div>
         <div id="callPicker" class="call-picker hidden"><h3>Call someone online</h3><div id="callPickerList" class="peer-list"></div></div>
+        <div id="roomBanner" class="room-banner hidden"><span aria-hidden="true">📣</span><span id="roomBannerText" class="grow"></span><button id="roomBannerJoin" class="banner-btn" type="button">Join</button><button id="roomBannerClose" class="banner-btn ghost" type="button" aria-label="Dismiss">×</button></div>
+        <div id="groupBanner" class="group-banner hidden"><span class="live-dot"></span><span id="groupBannerText" class="grow"></span><button id="groupJoinVoice" class="banner-btn" type="button">Join voice</button><button id="groupJoinVideo" class="banner-btn" type="button">Join video</button></div>
         <div id="secureBanner" class="secure-banner hidden"><span id="secureText">Voice messages and calls need the secure room address.</span><a id="secureLink" href="#">Open secure room</a></div>
         <div id="searchBar" class="search-bar">
           <input id="searchInput" type="search" placeholder="Search messages and file names…" aria-label="Search messages">
@@ -559,6 +603,26 @@
       <button id="hangupButton" class="call-btn end" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>End</button>
     </div>
   </div>
+  <div id="groupScreen" class="group-screen" role="dialog" aria-label="Group call">
+    <div class="group-top">
+      <div class="group-title"><b id="groupTitle">Group call</b><span id="groupStatus"></span></div>
+      <button id="groupPeopleButton" class="icon-button" type="button" aria-label="People in the call"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.2a3 3 0 0 1 0 5.6M17.5 14.3A5.5 5.5 0 0 1 20.5 19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="group-body">
+      <div id="groupGrid" class="group-grid"></div>
+      <video id="groupSelf" class="group-self hidden" autoplay playsinline muted></video>
+      <aside id="groupPeople" class="group-people hidden"><h3 id="groupPeopleTitle">In this call</h3><div id="groupPeopleList"></div></aside>
+    </div>
+    <div class="call-controls">
+      <button id="gMute" class="call-btn" type="button"><span><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>Mute</button>
+      <button id="gCamera" class="call-btn" type="button"><span><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="13" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 10.5 5-3v9l-5-3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>Camera</button>
+      <button id="gFlip" class="call-btn hidden" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M4 8h11a5 5 0 0 1 0 10H9m-5-10 3-3M4 8l3 3m13 8H9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Flip</button>
+      <button id="gSpeaker" class="call-btn hidden" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M15.5 9a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>Speaker</button>
+      <button id="gScreen" class="call-btn hidden" type="button"><span><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 20h8M12 16v4M12 13V7m0 0-2.5 2.5M12 7l2.5 2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Share</button>
+      <button id="gLeave" class="call-btn end" type="button"><span><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>Leave</button>
+    </div>
+  </div>
+  <audio id="groupAudio" autoplay playsinline class="hidden"></audio>
   <div id="messageMenu" class="message-menu hidden" role="menu" aria-label="Message actions"></div>
   <div id="toast" class="toast" role="status"></div>
   <script>
@@ -577,7 +641,7 @@
         byId: new Map(),
         cursor: Number(localStorage.getItem(CURSOR_KEY) || 0),
         device: localStorage.getItem(DEVICE_KEY) || makeId(),
-        name: localStorage.getItem(NAME_KEY) || defaultName(),
+        name: (window.HearthAndroid && typeof HearthAndroid.getName === 'function' && HearthAndroid.getName()) || localStorage.getItem(NAME_KEY) || defaultName(),
         online: false,
         pending: [],
         uploading: false,
@@ -592,6 +656,7 @@
         lightboxMessage: null,
         peers: [],
         signalCursor: 0,
+        handledSignal: 0,
         call: null,
         replyTo: null,
         typingAt: 0,
@@ -606,8 +671,9 @@
       const input = $('messageInput');
       const PAGE_BASE = location.origin && location.origin !== 'null' ? location.origin : '';
       const messageMenu = $('messageMenu');
-      const TITLE = document.title;
+      let TITLE = document.title;
 
+      const MIC_OFF_ICON = '<svg viewBox="0 0 24 24" fill="none"><path d="M9 9V6a3 3 0 0 1 5.8-1M15 11v.5A3 3 0 0 1 10 14M5.5 11a6.5 6.5 0 0 0 10.4 5.2M18.5 11a6.4 6.4 0 0 1-.6 2.7M12 17.5V21M4 4l16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
       const ICONS = {
         copy: '<svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.6"/></svg>',
         download: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -1048,8 +1114,40 @@
         const sent = state.messages.find(item => item.sender === device);
         return sent ? safeText(sent.senderName) : 'Someone';
       }
+      function groupCallLogView(message) {
+        const call = message.call || {};
+        const box = document.createElement('div');
+        box.className = 'call-log';
+        const icon = document.createElement('span');
+        icon.className = 'call-log-icon';
+        icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.2a3 3 0 0 1 0 5.6M17.5 14.3A5.5 5.5 0 0 1 20.5 19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+        const text = document.createElement('div');
+        const title = document.createElement('div');
+        const sub = document.createElement('small');
+        if (call.status === 'started') {
+          title.textContent = `${safeText(call.with) || 'Someone'} started a group call`;
+          sub.textContent = timeLabel(message.createdAt);
+        } else {
+          title.textContent = 'Group call ended';
+          sub.textContent = `${clock(call.duration)} · ${Number(call.people) || 0} ${Number(call.people) === 1 ? 'person' : 'people'}`;
+        }
+        text.append(title, sub);
+        box.append(icon, text);
+        if (call.status === 'started') {
+          const join = document.createElement('button');
+          join.type = 'button';
+          join.textContent = 'Join';
+          join.addEventListener('click', () => {
+            if (!group.roster.active) return showToast('That group call has ended.');
+            joinGroup(false);
+          });
+          box.append(join);
+        }
+        return box;
+      }
       function callLogView(message, mine) {
         const call = message.call || {};
+        if (call.group) return groupCallLogView(message);
         const box = document.createElement('div');
         box.className = 'call-log';
         const answered = call.status === 'completed';
@@ -1478,6 +1576,11 @@
         }
         try {
           state.info = await getJson(`${PAGE_BASE}/api/info`);
+          if (state.info.room) {
+            document.querySelector('.chat-title').textContent = state.info.room;
+            document.title = `${state.info.room} · Hearth Chat`;
+            TITLE = document.title;
+          }
           const preferred = window.isSecureContext && state.info.secureUrl ? state.info.secureUrl : state.info.url;
           $('roomUrl').textContent = preferred || 'Connect this phone to Wi‑Fi';
           updateSecureBanner();
@@ -1490,6 +1593,7 @@
         if (!PAGE_BASE) { setOnline(false); return; }
         if (polling) return;
         polling = true;
+        live.lastPoll = Date.now();
         try {
           let more = true;
           while (more) {
@@ -1712,14 +1816,17 @@
 
       /* ---------- Presence and typing ---------- */
       async function presenceLoop() {
-        if (PAGE_BASE) {
+        if (live.open) {
+          sendPresence(false);
+        } else if (PAGE_BASE) {
           try {
             const typing = Date.now() - state.typingAt < 4000 ? '1' : '0';
             const params = new URLSearchParams({ device: state.device, name: state.name, typing, busy: state.call ? '1' : '0', after: String(state.signalCursor) });
             const result = await getJson(`${PAGE_BASE}/api/presence?${params}`);
             state.peers = (result.peers || []).filter(peer => peer.device !== state.device);
-            state.signalCursor = Math.max(state.signalCursor, Number(result.next) || 0);
-            for (const signal of result.signals || []) await handleSignal(signal, Number(result.now) || Date.now());
+            const ack = Number(result.next) || 0;
+            for (const signal of result.signals || []) await acceptSignal(signal, Number(result.now) || Date.now());
+            state.signalCursor = Math.max(state.signalCursor, ack);
             renderPeers();
           } catch (_) {
             state.peers = [];
@@ -1902,6 +2009,7 @@
         ringer.timer = setInterval(beep, outgoing ? 3000 : 2000);
       }
       function sendSignal(to, type, callId, data) {
+        if (sendLive({ t: 'signal', to, type, callId, data: data || null })) return Promise.resolve();
         return fetch(`${PAGE_BASE}/api/signal`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ from: state.device, fromName: state.name, to, type, callId, data: data || null }),
@@ -1963,7 +2071,7 @@
       }
       async function startCall(peer, peerName, video) {
         if (needSecure('Calling')) return;
-        if (state.call) return showToast('You are already in a call.');
+        if (state.call || group.joined) return showToast('You are already in a call.');
         if (!state.online) return showToast('Reconnect to the home room to call.');
         const target = state.peers.find(item => item.device === peer);
         if (!target) return showToast(`${peerName || 'They'} isn’t online right now.`);
@@ -1998,7 +2106,7 @@
         switch (signal.type) {
           case 'offer': {
             if (serverNow - Number(signal.at) > 40000) return;
-            if (call) { sendSignal(signal.from, 'busy', signal.callId); return; }
+            if (call || group.joined) { sendSignal(signal.from, 'busy', signal.callId); return; }
             const data = signal.data || {};
             state.call = { id: signal.callId, peer: signal.from, peerName: safeText(signal.fromName) || 'Someone', video: !!data.video, direction: 'in', status: 'incoming', offer: data.sdp, pending: [], muted: false, cameraOff: false, remoteMuted: false, remoteCameraOff: false, speaker: !!data.video, facing: 'user' };
             showCallScreen();
@@ -2269,6 +2377,680 @@
         }
       });
 
+      /* ---------- Live connection (WebSocket) ---------- */
+      const live = { ws: null, open: false, attempts: 0, usePlain: false, presenceSent: '', presenceAt: 0, lastPoll: 0 };
+      function liveUrl() {
+        if (!PAGE_BASE) return '';
+        const page = new URL(PAGE_BASE);
+        if (page.protocol === 'https:' && live.usePlain) return `ws://${page.hostname}:8787/ws`;
+        return `${page.protocol === 'https:' ? 'wss' : 'ws'}://${page.host}/ws`;
+      }
+      function connectLive() {
+        const url = liveUrl();
+        if (!url || !('WebSocket' in window) || live.ws) return;
+        let opened = false;
+        let ws;
+        try { ws = new WebSocket(url); } catch (_) { return; }
+        ws.binaryType = 'arraybuffer';
+        live.ws = ws;
+        ws.onopen = () => {
+          opened = true;
+          live.open = true;
+          live.attempts = 0;
+          live.presenceSent = '';
+          sendPresence(true);
+          if (group.joined) sendLive({ t: 'gc-join', camera: group.camera || group.screen, muted: group.muted });
+          pollRoom();
+        };
+        ws.onmessage = event => {
+          if (typeof event.data === 'string') onLiveText(event.data);
+          else onLiveBinary(event.data);
+        };
+        ws.onclose = () => {
+          if (live.ws === ws) live.ws = null;
+          live.open = false;
+          // The Android app can fall back to the room's plain socket when the secure one is refused.
+          if (!opened && IN_ANDROID_APP && location.protocol === 'https:' && !live.usePlain) live.usePlain = true;
+          live.attempts++;
+          setTimeout(connectLive, Math.min(8000, 400 * 2 ** Math.min(live.attempts, 5)));
+        };
+      }
+      function sendLive(value) {
+        if (!live.open || !live.ws) return false;
+        try { live.ws.send(JSON.stringify(value)); return true; } catch (_) { return false; }
+      }
+      function sendPresence(force) {
+        if (!live.open) return;
+        const typing = Date.now() - state.typingAt < 4000;
+        const busy = !!(state.call || group.joined);
+        const key = `${state.name}|${typing}|${busy}`;
+        if (!force && key === live.presenceSent && Date.now() - live.presenceAt < 5000) return;
+        live.presenceSent = key;
+        live.presenceAt = Date.now();
+        sendLive({ t: force ? 'hello' : 'presence', device: state.device, name: state.name, typing, busy });
+      }
+      function onLiveText(text) {
+        let message;
+        try { message = JSON.parse(text); } catch (_) { return; }
+        switch (message.t) {
+          case 'welcome':
+          case 'peers':
+            state.peers = (message.peers || []).filter(peer => peer.device !== state.device);
+            renderPeers();
+            break;
+          case 'msg':
+            if (message.message) addMessage(message.message);
+            break;
+          case 'sync':
+            pollRoom();
+            break;
+          case 'signal':
+            if (message.signal) acceptSignal(message.signal, Number(message.now) || Date.now());
+            break;
+          case 'gc':
+            onGroupRoster(message);
+            break;
+          case 'gc-key':
+            group.forceKey = true;
+            break;
+          case 'gc-full':
+            showToast(`This group call is full (${message.max} people).`);
+            leaveGroup(false);
+            break;
+        }
+      }
+      function acceptSignal(signal, now) {
+        const id = Number(signal.id) || 0;
+        state.signalCursor = Math.max(state.signalCursor, id);
+        if (id && id <= state.handledSignal) return;
+        if (id) state.handledSignal = id;
+        handleSignal(signal, now);
+      }
+
+      /* ---------- Group calls ---------- */
+      const group = {
+        roster: { active: false, participants: [] }, joined: false, joining: false, muted: false, camera: false, screen: false,
+        stream: null, screenStream: null, audioReader: null, videoReader: null, audioEncoder: null, videoEncoder: null,
+        videoSize: '', level: 0, visible: false, forceKey: true, lastKey: 0, lastVideoAt: 0, facing: 'user', speaker: true,
+        ctx: null, mix: null, loop: null, slots: new Map(), tiles: new Map(), showPeople: false, clock: null, wasActive: false,
+      };
+      const groupEls = { screen: $('groupScreen'), grid: $('groupGrid'), self: $('groupSelf'), people: $('groupPeople'), list: $('groupPeopleList') };
+      function groupSupported() {
+        return 'MediaStreamTrackProcessor' in window && 'AudioEncoder' in window && 'AudioDecoder' in window
+          && 'VideoEncoder' in window && 'VideoDecoder' in window;
+      }
+      function header(kind, key, level, channels, rate, timestamp, payloadLength) {
+        const bytes = new Uint8Array(12 + payloadLength);
+        bytes[0] = kind;
+        bytes[1] = key ? 1 : 0;
+        bytes[2] = Math.max(0, Math.min(127, level | 0));
+        bytes[3] = channels || 0;
+        const rate10 = Math.round((rate || 0) / 10);
+        bytes[4] = rate10 >> 8;
+        bytes[5] = rate10 & 255;
+        new DataView(bytes.buffer).setUint32(8, Math.floor(timestamp / 1000) >>> 0);
+        return bytes;
+      }
+      function sendMedia(bytes, isVideo) {
+        const ws = live.ws;
+        if (!live.open || !ws) return false;
+        // Skip media rather than build up delay on a busy network; video resumes on the next keyframe.
+        if (ws.bufferedAmount > (isVideo ? 256 * 1024 : 1024 * 1024)) {
+          if (isVideo) group.forceKey = true;
+          return false;
+        }
+        ws.send(bytes);
+        return true;
+      }
+      async function joinGroup(withVideo) {
+        if (needSecure('Group calls')) return;
+        if (!groupSupported()) return showToast('Group calls need Chrome, Edge or the Hearth Android app.');
+        if (state.call) return showToast('Finish your call first.');
+        if (!live.open) return showToast('Still connecting to the room — try again in a moment.');
+        if (group.joined || group.joining) return;
+        group.joining = true;
+        try {
+          try {
+            group.stream = await navigator.mediaDevices.getUserMedia({
+              audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+              video: withVideo ? { facingMode: group.facing, width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 24 } } : false,
+            });
+          } catch (error) {
+            if (!withVideo) throw error;
+            showToast('Camera unavailable — joining with voice only.');
+            group.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+          }
+        } catch (_) {
+          group.joining = false;
+          return showToast('Allow microphone access to join the call.');
+        }
+        group.joining = false;
+        group.joined = true;
+        group.muted = false;
+        group.camera = group.stream.getVideoTracks().length > 0;
+        group.screen = false;
+        group.speaker = true;
+        group.forceKey = true;
+        setupGroupAudio();
+        startAudioPipeline(group.stream.getAudioTracks()[0]);
+        if (group.camera) startVideoPipeline(group.stream.getVideoTracks()[0]);
+        updateSelfPreview();
+        sendLive({ t: 'gc-join', camera: group.camera, muted: false });
+        sendPresence(true);
+        groupEls.screen.classList.add('visible');
+        if (window.HearthAndroid) { try { HearthAndroid.setInCall(true, true); } catch (_) {} }
+        clearInterval(group.clock);
+        group.clock = setInterval(renderGroupStatus, 1000);
+        navigator.mediaDevices.enumerateDevices().then(devices => {
+          group.cameras = devices.filter(device => device.kind === 'videoinput').length;
+          renderGroup();
+        }).catch(() => {});
+        renderGroup();
+      }
+      function leaveGroup(notify = true) {
+        if (!group.joined) return;
+        if (notify) sendLive({ t: 'gc-leave' });
+        group.joined = false;
+        stopReader('audioReader');
+        stopReader('videoReader');
+        for (const key of ['audioEncoder', 'videoEncoder']) {
+          try { if (group[key] && group[key].state !== 'closed') group[key].close(); } catch (_) {}
+          group[key] = null;
+        }
+        group.videoSize = '';
+        [group.stream, group.screenStream].forEach(stream => stream && stream.getTracks().forEach(track => track.stop()));
+        group.stream = null;
+        group.screenStream = null;
+        for (const slot of group.slots.values()) closeSlot(slot);
+        group.slots.clear();
+        group.tiles.clear();
+        groupEls.grid.replaceChildren();
+        if (group.loop) { group.loop.forEach(pc => { try { pc.close(); } catch (_) {} }); group.loop = null; }
+        if (group.ctx) { group.ctx.close().catch(() => {}); group.ctx = null; group.mix = null; }
+        $('groupAudio').srcObject = null;
+        groupEls.self.srcObject = null;
+        groupEls.screen.classList.remove('visible');
+        clearInterval(group.clock);
+        if (window.HearthAndroid) { try { HearthAndroid.setInCall(false, false); } catch (_) {} }
+        sendPresence(true);
+        renderGroupBanner();
+      }
+      function stopReader(key) {
+        const reader = group[key];
+        group[key] = null;
+        if (reader) reader.cancel().catch(() => {});
+      }
+
+      /** Plays everyone through a local WebRTC loopback so the browser's echo canceller hears what the speaker plays. */
+      function setupGroupAudio() {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+        group.ctx = ctx;
+        group.mix = ctx.createGain();
+        const output = ctx.createMediaStreamDestination();
+        group.mix.connect(output);
+        const audio = $('groupAudio');
+        const direct = () => { group.mix.disconnect(); group.mix.connect(ctx.destination); };
+        try {
+          const sender = new RTCPeerConnection();
+          const receiver = new RTCPeerConnection();
+          group.loop = [sender, receiver];
+          sender.onicecandidate = event => event.candidate && receiver.addIceCandidate(event.candidate).catch(() => {});
+          receiver.onicecandidate = event => event.candidate && sender.addIceCandidate(event.candidate).catch(() => {});
+          receiver.ontrack = event => {
+            audio.srcObject = new MediaStream([event.track]);
+            audio.play().catch(() => {});
+          };
+          output.stream.getAudioTracks().forEach(track => sender.addTrack(track, output.stream));
+          sender.createOffer()
+            .then(offer => sender.setLocalDescription(offer))
+            .then(() => receiver.setRemoteDescription(sender.localDescription))
+            .then(() => receiver.createAnswer())
+            .then(answer => receiver.setLocalDescription(answer))
+            .then(() => sender.setRemoteDescription(receiver.localDescription))
+            .catch(direct);
+        } catch (_) {
+          direct();
+        }
+        ctx.resume().catch(() => {});
+      }
+      function startAudioPipeline(track) {
+        if (!track) return;
+        const reader = new MediaStreamTrackProcessor({ track }).readable.getReader();
+        group.audioReader = reader;
+        let channels = 1;
+        let rate = 48000;
+        const encoder = new AudioEncoder({
+          output: chunk => {
+            const bytes = header(1, 0, group.level, channels, rate, chunk.timestamp, chunk.byteLength);
+            chunk.copyTo(bytes.subarray(12));
+            sendMedia(bytes, false);
+          },
+          error: () => {},
+        });
+        group.audioEncoder = encoder;
+        const scratch = { buffer: null };
+        (async () => {
+          while (group.audioReader === reader) {
+            let result;
+            try { result = await reader.read(); } catch (_) { break; }
+            if (result.done) break;
+            const data = result.value;
+            try {
+              if (encoder.state === 'unconfigured') {
+                channels = Math.min(2, data.numberOfChannels);
+                rate = data.sampleRate;
+                encoder.configure({ codec: 'opus', sampleRate: rate, numberOfChannels: channels, bitrate: 28000, opus: { frameDuration: 20000, usedtx: true, useinbandfec: true } });
+              }
+              if (!scratch.buffer || scratch.buffer.length < data.numberOfFrames) scratch.buffer = new Float32Array(data.numberOfFrames);
+              data.copyTo(scratch.buffer, { planeIndex: 0, format: 'f32-planar' });
+              let sum = 0;
+              for (let i = 0; i < data.numberOfFrames; i++) sum += scratch.buffer[i] * scratch.buffer[i];
+              const level = Math.min(127, Math.sqrt(sum / data.numberOfFrames) * 600);
+              group.level = Math.max(level, group.level * 0.6);
+              if (!group.muted && encoder.state === 'configured' && encoder.encodeQueueSize < 8) encoder.encode(data);
+            } catch (_) {}
+            data.close();
+          }
+        })();
+      }
+      function startVideoPipeline(track) {
+        stopReader('videoReader');
+        if (!track) return;
+        const reader = new MediaStreamTrackProcessor({ track }).readable.getReader();
+        group.videoReader = reader;
+        let lastFrameAt = 0;
+        (async () => {
+          while (group.videoReader === reader) {
+            let result;
+            try { result = await reader.read(); } catch (_) { break; }
+            if (result.done) break;
+            const frame = result.value;
+            const now = performance.now();
+            const fps = group.screen ? 5 : 15;
+            const wanted = group.joined && group.visible && (group.camera || group.screen) && now - lastFrameAt >= 1000 / fps - 4;
+            if (wanted) {
+              lastFrameAt = now;
+              try { encodeVideo(frame); } catch (_) { group.videoSize = ''; }
+            }
+            frame.close();
+          }
+        })();
+      }
+      function encodeVideo(frame) {
+        const max = group.screen ? 1280 : 480;
+        const scale = Math.min(1, max / Math.max(frame.displayWidth, frame.displayHeight));
+        const width = Math.max(2, Math.round(frame.displayWidth * scale / 2) * 2);
+        const height = Math.max(2, Math.round(frame.displayHeight * scale / 2) * 2);
+        const size = `${width}x${height}|${group.screen}`;
+        if (!group.videoEncoder || group.videoEncoder.state === 'closed' || group.videoSize !== size) {
+          try { if (group.videoEncoder && group.videoEncoder.state !== 'closed') group.videoEncoder.close(); } catch (_) {}
+          group.videoEncoder = new VideoEncoder({
+            output: (chunk) => {
+              const bytes = header(2, chunk.type === 'key', 0, 0, 0, chunk.timestamp, chunk.byteLength);
+              chunk.copyTo(bytes.subarray(12));
+              if (chunk.type === 'key') group.lastKey = performance.now();
+              sendMedia(bytes, true);
+            },
+            error: () => { group.videoSize = ''; },
+          });
+          group.videoEncoder.configure({ codec: 'vp8', width, height, bitrate: group.screen ? 900000 : 260000, framerate: group.screen ? 5 : 15, latencyMode: 'realtime' });
+          group.videoSize = size;
+          group.forceKey = true;
+        }
+        if (group.videoEncoder.encodeQueueSize > 2) return;
+        const keyFrame = group.forceKey || performance.now() - group.lastKey > 4000;
+        group.forceKey = false;
+        if (keyFrame) group.lastKey = performance.now();
+        group.videoEncoder.encode(frame, { keyFrame });
+      }
+      function slotState(slot) {
+        let state = group.slots.get(slot);
+        if (!state) {
+          state = { slot, audioDecoder: null, videoDecoder: null, playhead: 0, needKey: true, lastPli: 0, lastVideoAt: 0, canvas: null, audioConfig: '' };
+          group.slots.set(slot, state);
+        }
+        return state;
+      }
+      function closeSlot(state) {
+        for (const key of ['audioDecoder', 'videoDecoder']) {
+          try { if (state[key] && state[key].state !== 'closed') state[key].close(); } catch (_) {}
+          state[key] = null;
+        }
+      }
+      function onLiveBinary(buffer) {
+        if (!group.joined || !group.ctx) return;
+        const bytes = new Uint8Array(buffer);
+        if (bytes.length < 14) return;
+        const slot = (bytes[0] << 8) | bytes[1];
+        const kind = bytes[2];
+        const key = (bytes[3] & 1) === 1;
+        const timestamp = new DataView(buffer).getUint32(10) * 1000;
+        const payload = bytes.subarray(14);
+        const state = slotState(slot);
+        try {
+          if (kind === 1) {
+            const channels = bytes[5] || 1;
+            const rate = ((bytes[6] << 8) | bytes[7]) * 10 || 48000;
+            const config = `${channels}/${rate}`;
+            if (!state.audioDecoder || state.audioDecoder.state === 'closed' || state.audioConfig !== config) {
+              if (state.audioDecoder && state.audioDecoder.state !== 'closed') state.audioDecoder.close();
+              state.audioDecoder = new AudioDecoder({ output: data => playAudio(state, data), error: () => { state.audioDecoder = null; } });
+              state.audioDecoder.configure({ codec: 'opus', sampleRate: rate, numberOfChannels: channels });
+              state.audioConfig = config;
+            }
+            state.audioDecoder.decode(new EncodedAudioChunk({ type: 'key', timestamp, data: payload }));
+          } else if (kind === 2) {
+            if (!state.videoDecoder || state.videoDecoder.state === 'closed') {
+              state.videoDecoder = new VideoDecoder({ output: frame => drawFrame(state, frame), error: () => { state.videoDecoder = null; state.needKey = true; } });
+              state.videoDecoder.configure({ codec: 'vp8' });
+              state.needKey = true;
+            }
+            if (state.needKey && !key) {
+              const now = performance.now();
+              if (now - state.lastPli > 1000) { state.lastPli = now; sendLive({ t: 'gc-pli', slot }); }
+              return;
+            }
+            state.needKey = false;
+            if (state.videoDecoder.decodeQueueSize > 4) { state.needKey = true; return; }
+            state.videoDecoder.decode(new EncodedVideoChunk({ type: key ? 'key' : 'delta', timestamp, data: payload }));
+          }
+        } catch (_) {
+          closeSlot(state);
+          state.needKey = true;
+        }
+      }
+      function playAudio(state, data) {
+        const ctx = group.ctx;
+        if (!ctx) { data.close(); return; }
+        try {
+          const buffer = ctx.createBuffer(data.numberOfChannels, data.numberOfFrames, data.sampleRate);
+          for (let channel = 0; channel < data.numberOfChannels; channel++) {
+            data.copyTo(buffer.getChannelData(channel), { planeIndex: channel, format: 'f32-planar' });
+          }
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(group.mix);
+          const now = ctx.currentTime;
+          // Small jitter buffer: start ~80 ms behind real time, and resync if we drift too far either way.
+          if (state.playhead < now + 0.015 || state.playhead > now + 0.4) state.playhead = now + 0.08;
+          source.start(state.playhead);
+          state.playhead += buffer.duration;
+        } catch (_) {}
+        data.close();
+      }
+      function drawFrame(state, frame) {
+        state.lastVideoAt = performance.now();
+        const canvas = state.canvas;
+        if (canvas && canvas.isConnected) {
+          if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
+            canvas.width = frame.displayWidth;
+            canvas.height = frame.displayHeight;
+          }
+          try { canvas.getContext('2d').drawImage(frame, 0, 0); } catch (_) {}
+          canvas.classList.remove('hidden');
+        }
+        frame.close();
+      }
+      function onGroupRoster(roster) {
+        const wasActive = group.roster.active;
+        group.roster = roster;
+        const me = (roster.participants || []).find(p => p.device === state.device);
+        if (group.joined && me) {
+          if (me.visible && !group.visible) group.forceKey = true;
+          group.visible = me.visible;
+        }
+        if (!wasActive && roster.active && !group.joined && state.loaded) {
+          const starter = (roster.participants || [])[0];
+          if (starter && starter.device !== state.device) {
+            showToast(`${starter.name} started a group call.`);
+            if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+              try { new Notification('Group call started', { body: `${starter.name} · tap to join`, tag: 'hearth-group' }); } catch (_) {}
+            }
+          }
+        }
+        const liveSlots = new Set((roster.participants || []).map(p => p.slot));
+        for (const [slot, slotInfo] of group.slots) if (!liveSlots.has(slot)) { closeSlot(slotInfo); group.slots.delete(slot); group.tiles.delete(slot); }
+        renderGroupBanner();
+        if (group.joined) renderGroup();
+      }
+      function renderGroupBanner() {
+        const roster = group.roster;
+        const count = (roster.participants || []).length;
+        const show = roster.active && !group.joined;
+        $('groupBanner').classList.toggle('hidden', !show);
+        if (show) {
+          const names = roster.participants.slice(0, 3).map(p => p.name).join(', ');
+          $('groupBannerText').textContent = `Group call · ${count} ${count === 1 ? 'person' : 'people'} · ${names}${count > 3 ? '…' : ''}`;
+        }
+        $('groupToggle').querySelector('.pill-label').textContent = roster.active ? `Group call (${count})` : 'Group call';
+      }
+      function renderGroupStatus() {
+        const roster = group.roster;
+        const count = (roster.participants || []).length;
+        const elapsed = roster.startedAt ? clock((Date.now() - roster.startedAt) / 1000) : '';
+        $('groupTitle').textContent = `${(state.info && state.info.room) || 'Room'} · group call`;
+        $('groupStatus').textContent = `${count} ${count === 1 ? 'person' : 'people'}${elapsed ? ` · ${elapsed}` : ''}${live.open ? '' : ' · reconnecting…'}`;
+        // Tiles switch to the avatar when a person's video stops arriving.
+        for (const [slot, tile] of group.tiles) {
+          const info = group.slots.get(slot);
+          const fresh = info && performance.now() - info.lastVideoAt < 2500;
+          tile.querySelector('canvas').classList.toggle('hidden', !fresh);
+          tile.querySelector('.tile-avatar').classList.toggle('hidden', !!fresh);
+        }
+      }
+      function renderGroup() {
+        if (!group.joined) return;
+        const others = (group.roster.participants || []).filter(p => p.device !== state.device);
+        const ordered = others.slice().sort((a, b) => (b.screen - a.screen) || (b.visible - a.visible) || (b.speaking - a.speaking));
+        const mobile = innerWidth < 720;
+        const maxTiles = mobile ? 6 : 9;
+        const shown = ordered.length > maxTiles ? ordered.slice(0, maxTiles - 1) : ordered;
+        const extra = ordered.length - shown.length;
+        const tiles = shown.map(p => groupTile(p));
+        if (extra > 0) {
+          const more = document.createElement('div');
+          more.className = 'tile more';
+          more.textContent = `+${extra}`;
+          more.title = 'See everyone in the call';
+          more.addEventListener('click', () => { group.showPeople = true; renderGroup(); });
+          tiles.push(more);
+        }
+        if (!tiles.length) {
+          const empty = document.createElement('div');
+          empty.className = 'tile';
+          empty.style.gridColumn = '1 / -1';
+          empty.innerHTML = '<div style="text-align:center;color:rgba(238,246,241,.75);font-size:13px;padding:20px">Waiting for others to join…<br><small>Everyone in this room sees a “Join” banner.</small></div>';
+          tiles.push(empty);
+        }
+        const count = tiles.length;
+        const portrait = innerHeight > innerWidth;
+        let cols = count <= 1 ? 1 : count <= 4 ? 2 : 3;
+        if (portrait) cols = count <= 2 ? 1 : 2;
+        const rows = Math.ceil(count / cols);
+        groupEls.grid.style.setProperty('--cols', String(cols));
+        groupEls.grid.style.setProperty('--rows', String(rows));
+        const current = Array.from(groupEls.grid.children);
+        if (current.length !== tiles.length || current.some((node, index) => node !== tiles[index])) groupEls.grid.replaceChildren(...tiles);
+        groupEls.people.classList.toggle('hidden', !group.showPeople);
+        if (group.showPeople) {
+          $('groupPeopleTitle').textContent = `In this call (${group.roster.participants.length})`;
+          groupEls.list.replaceChildren(...group.roster.participants.map(p => {
+            const row = document.createElement('div');
+            row.className = `gp${p.speaking ? ' speaking' : ''}`;
+            const avatar = document.createElement('span');
+            avatar.className = 'peer-avatar';
+            avatar.style.background = avatarColor(p.device);
+            avatar.textContent = initials(p.name);
+            const name = document.createElement('span');
+            name.className = 'grow';
+            name.textContent = p.device === state.device ? `${p.name} (you)` : p.name;
+            row.append(avatar, name);
+            row.insertAdjacentHTML('beforeend', (p.muted ? MIC_OFF_ICON.replace('<svg', '<svg class="off"') : '') + (p.camera || p.screen ? ICONS.video : ''));
+            return row;
+          }));
+        }
+        $('gMute').classList.toggle('off', group.muted);
+        $('gMute').lastChild.textContent = group.muted ? 'Unmute' : 'Mute';
+        $('gCamera').classList.toggle('off', !group.camera);
+        $('gFlip').classList.toggle('hidden', !(group.camera && group.cameras > 1 && !group.screen));
+        $('gSpeaker').classList.toggle('hidden', !window.HearthAndroid);
+        $('gSpeaker').classList.toggle('off', group.speaker);
+        $('gScreen').classList.toggle('hidden', !(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && !IN_ANDROID_APP));
+        $('gScreen').classList.toggle('off', group.screen);
+        renderGroupStatus();
+      }
+      function groupTile(p) {
+        let tile = group.tiles.get(p.slot);
+        if (!tile) {
+          tile = document.createElement('div');
+          tile.className = 'tile';
+          const canvas = document.createElement('canvas');
+          canvas.className = 'hidden';
+          const avatar = document.createElement('div');
+          avatar.className = 'tile-avatar';
+          const label = document.createElement('div');
+          label.className = 'tile-label';
+          tile.append(canvas, avatar, label);
+          group.tiles.set(p.slot, tile);
+          slotState(p.slot).canvas = canvas;
+        }
+        tile.classList.toggle('speaking', !!p.speaking);
+        const avatar = tile.querySelector('.tile-avatar');
+        avatar.textContent = initials(p.name);
+        avatar.style.background = avatarColor(p.device);
+        const label = tile.querySelector('.tile-label');
+        label.innerHTML = p.muted ? MIC_OFF_ICON : '';
+        label.append(document.createTextNode(p.screen ? `${p.name} · screen` : p.name));
+        return tile;
+      }
+      function updateSelfPreview() {
+        const track = group.screen && group.screenStream ? group.screenStream.getVideoTracks()[0] : group.stream && group.stream.getVideoTracks()[0];
+        const show = !!track && (group.camera || group.screen);
+        groupEls.self.classList.toggle('hidden', !show);
+        groupEls.self.classList.toggle('no-mirror', group.screen || group.facing === 'environment');
+        if (show) {
+          groupEls.self.srcObject = new MediaStream([track]);
+          groupEls.self.play().catch(() => {});
+        } else {
+          groupEls.self.srcObject = null;
+        }
+      }
+      function sendGroupState() {
+        sendLive({ t: 'gc-state', muted: group.muted, camera: group.camera, screen: group.screen });
+        renderGroup();
+      }
+      async function toggleGroupCamera() {
+        if (group.screen) return showToast('Stop sharing your screen first.');
+        if (!group.camera) {
+          let track = group.stream.getVideoTracks()[0];
+          if (!track) {
+            try {
+              const fresh = await navigator.mediaDevices.getUserMedia({ video: { facingMode: group.facing, width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 24 } } });
+              track = fresh.getVideoTracks()[0];
+              group.stream.addTrack(track);
+            } catch (_) { return showToast('Could not turn on the camera.'); }
+          }
+          track.enabled = true;
+          group.camera = true;
+          group.forceKey = true;
+          startVideoPipeline(track);
+        } else {
+          group.camera = false;
+          stopReader('videoReader');
+          group.stream.getVideoTracks().forEach(track => { track.stop(); group.stream.removeTrack(track); });
+        }
+        updateSelfPreview();
+        sendGroupState();
+      }
+      async function flipGroupCamera() {
+        if (!group.camera || group.screen) return;
+        const facing = group.facing === 'user' ? 'environment' : 'user';
+        try {
+          const fresh = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 24 } } });
+          group.stream.getVideoTracks().forEach(track => { track.stop(); group.stream.removeTrack(track); });
+          const track = fresh.getVideoTracks()[0];
+          group.stream.addTrack(track);
+          group.facing = facing;
+          group.forceKey = true;
+          startVideoPipeline(track);
+          updateSelfPreview();
+        } catch (_) { showToast('Could not switch camera.'); }
+      }
+      async function toggleGroupScreen() {
+        if (group.screen) {
+          group.screen = false;
+          if (group.screenStream) group.screenStream.getTracks().forEach(track => track.stop());
+          group.screenStream = null;
+          const camera = group.stream.getVideoTracks()[0];
+          if (camera && group.camera) startVideoPipeline(camera); else stopReader('videoReader');
+        } else {
+          try { group.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false }); } catch (_) { return; }
+          const track = group.screenStream.getVideoTracks()[0];
+          track.addEventListener('ended', () => { if (group.screen) toggleGroupScreen(); });
+          group.screen = true;
+          group.forceKey = true;
+          startVideoPipeline(track);
+        }
+        group.videoSize = '';
+        updateSelfPreview();
+        sendGroupState();
+      }
+      $('groupToggle').addEventListener('click', () => joinGroup(false));
+      $('groupJoinVoice').addEventListener('click', () => joinGroup(false));
+      $('groupJoinVideo').addEventListener('click', () => joinGroup(true));
+      $('gLeave').addEventListener('click', () => leaveGroup(true));
+      $('gMute').addEventListener('click', () => { group.muted = !group.muted; sendGroupState(); });
+      $('gCamera').addEventListener('click', toggleGroupCamera);
+      $('gFlip').addEventListener('click', flipGroupCamera);
+      $('gScreen').addEventListener('click', toggleGroupScreen);
+      $('gSpeaker').addEventListener('click', () => {
+        group.speaker = !group.speaker;
+        try { HearthAndroid.setSpeaker(group.speaker); } catch (_) {}
+        renderGroup();
+      });
+      $('groupPeopleButton').addEventListener('click', () => { group.showPeople = !group.showPeople; renderGroup(); });
+      window.addEventListener('resize', () => { if (group.joined) renderGroup(); });
+      window.addEventListener('pagehide', () => { if (group.joined) sendLive({ t: 'gc-leave' }); });
+
+      /* ---------- Other rooms on this Wi‑Fi ---------- */
+      const roomWatch = { seen: null, offered: null };
+      async function checkRooms() {
+        let rooms = [];
+        try {
+          if (window.HearthAndroid && typeof HearthAndroid.rooms === 'function') rooms = JSON.parse(HearthAndroid.rooms() || '[]');
+          else if (PAGE_BASE && state.online) rooms = (await getJson(`${PAGE_BASE}/api/rooms`)).rooms || [];
+        } catch (_) { return; }
+        const currentId = state.info && state.info.roomId;
+        rooms = rooms.filter(room => room.id && room.id !== currentId);
+        if (roomWatch.seen === null) {
+          // Rooms already open when this page loaded are not announced; only new ones get a banner.
+          roomWatch.seen = new Set(rooms.map(room => room.id));
+          return;
+        }
+        const fresh = rooms.find(room => !roomWatch.seen.has(room.id));
+        rooms.forEach(room => roomWatch.seen.add(room.id));
+        if (fresh) {
+          roomWatch.offered = fresh;
+          $('roomBannerText').textContent = `“${fresh.name}” by ${fresh.host || 'someone'} just opened on this Wi‑Fi.`;
+          $('roomBanner').classList.remove('hidden');
+        }
+      }
+      $('roomBannerClose').addEventListener('click', () => $('roomBanner').classList.add('hidden'));
+      $('roomBannerJoin').addEventListener('click', () => {
+        const room = roomWatch.offered;
+        if (!room) return;
+        if (state.call || group.joined) return showToast('Leave the call before switching rooms.');
+        if (window.HearthAndroid && typeof HearthAndroid.joinRoom === 'function') HearthAndroid.joinRoom(room.id);
+        else location.href = `${(window.isSecureContext && room.secureUrl) || room.url}/`;
+      });
+      if (window.HearthAndroid && typeof HearthAndroid.openRooms === 'function') {
+        $('roomsButton').classList.remove('hidden');
+        $('roomsButton').addEventListener('click', () => {
+          if (state.call || group.joined) return showToast('Leave the call before switching rooms.');
+          HearthAndroid.openRooms();
+        });
+      }
+
       /* ---------- Events ---------- */
       function toggleAttachMenu(force) {
         const menu = $('attachMenu');
@@ -2324,6 +3106,8 @@
         if (next) {
           state.name = next.slice(0, 48);
           localStorage.setItem(NAME_KEY, state.name);
+          if (window.HearthAndroid && typeof HearthAndroid.setName === 'function') { try { HearthAndroid.setName(state.name); } catch (_) {} }
+          sendPresence(true);
           renderProfile();
           showToast(`You’ll appear as ${state.name}.`);
         }
@@ -2417,6 +3201,7 @@
       });
       input.addEventListener('input', () => {
         state.typingAt = input.value.trim() ? Date.now() : 0;
+        sendPresence(false);
         updateComposerButtons();
         input.style.height = 'auto';
         input.style.height = `${Math.min(input.scrollHeight, 150)}px`;
@@ -2438,8 +3223,11 @@
       updateComposerButtons();
       renderPeers();
       discoverRoom().then(pollRoom).then(() => { state.loaded = true; });
-      setInterval(pollRoom, 1500);
+      // With a live connection, messages arrive instantly; polling is only a slow safety net.
+      setInterval(() => { if (!live.open || Date.now() - live.lastPoll > 15000) pollRoom(); }, 1500);
       presenceLoop();
+      connectLive();
+      setInterval(checkRooms, 4000);
     })();
   </script>
 </body>

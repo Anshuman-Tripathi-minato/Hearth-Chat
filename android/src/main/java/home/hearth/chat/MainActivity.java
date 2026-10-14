@@ -45,20 +45,26 @@ public final class MainActivity extends Activity {
     private WebView webView;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private int loadAttempts;
-    private String loadedRoomUrl = "";
+    private static final String LOBBY_URL = "file:///android_asset/lobby.html";
+    private String loadedRoomUrl = null;
+    private volatile boolean onLobby;
     private ValueCallback<Uri[]> uploadCallback;
     private PendingDownload pendingDownload;
     private final Runnable roomUrlWatcher = new Runnable() {
         @Override public void run() {
             if (webView == null || isFinishing()) return;
-            String roomUrl = getRoomUrl();
-            if (!roomUrl.isEmpty() && !roomUrl.equals(loadedRoomUrl)) {
-                loadedRoomUrl = roomUrl;
-                loadAttempts = 0;
-                secureFailures = 0;
-                webView.loadUrl(pageUrl(roomUrl));
+            // Wait for the room service so a room from the previous session is not opened by mistake.
+            if (RoomDiscovery.current() != null) {
+                String roomUrl = getRoomUrl();
+                if (!roomUrl.equals(loadedRoomUrl)) {
+                    loadedRoomUrl = roomUrl;
+                    loadAttempts = 0;
+                    secureFailures = 0;
+                    if (roomUrl.isEmpty()) showLobby();
+                    else webView.loadUrl(pageUrl(roomUrl));
+                }
             }
-            handler.postDelayed(this, 750);
+            handler.postDelayed(this, 500);
         }
     };
 
@@ -95,6 +101,11 @@ public final class MainActivity extends Activity {
         webView.setBackgroundColor(0xFFF4F7F4);
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                onLobby = url != null && url.startsWith("file:///android_asset/");
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 loadAttempts = 0;
             }
@@ -103,7 +114,7 @@ public final class MainActivity extends Activity {
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 String activeUrl = getRoomUrl();
-                if (!request.isForMainFrame() || activeUrl.isEmpty()) return;
+                if (!request.isForMainFrame() || activeUrl.isEmpty() || onLobby) return;
                 String failed = request.getUrl().toString();
                 if (failed.startsWith(secureUrl(activeUrl)) && ++secureFailures >= SECURE_ATTEMPTS) {
                     // The host may run an older Hearth without HTTPS: chat still works, calls will not.
@@ -160,11 +171,64 @@ public final class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(false);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        // Group calls fall back to the room's plain WebSocket when the secure one is refused.
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(false);
         webView.addJavascriptInterface(new CallBridge(), "HearthAndroid");
         setContentView(webView);
         handler.post(roomUrlWatcher);
+        handleIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent);
+    }
+
+    /** Notification taps: join the announced room, or show the room list. */
+    private void handleIntent(Intent intent) {
+        if (intent == null) return;
+        String joinId = intent.getStringExtra(LanService.EXTRA_JOIN_ROOM);
+        int notificationId = intent.getIntExtra("notification_id", 0);
+        if (notificationId != 0) {
+            android.app.NotificationManager manager = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (manager != null) manager.cancel(notificationId);
+        }
+        if (joinId != null && !joinId.isEmpty()) {
+            intent.removeExtra(LanService.EXTRA_JOIN_ROOM);
+            joinWhenReady(joinId, 0);
+        } else if (intent.getBooleanExtra(LanService.EXTRA_SHOW_ROOMS, false)) {
+            intent.removeExtra(LanService.EXTRA_SHOW_ROOMS);
+            handler.postDelayed(this::showLobby, 300);
+        }
+    }
+
+    private void joinWhenReady(String id, int attempt) {
+        RoomDiscovery directory = RoomDiscovery.current();
+        if (directory != null) {
+            directory.join(id);
+        } else if (attempt < 20) {
+            handler.postDelayed(() -> joinWhenReady(id, attempt + 1), 250);
+        }
+    }
+
+    private void showLobby() {
+        if (webView != null && !onLobby) {
+            onLobby = true;
+            webView.loadUrl(LOBBY_URL);
+        }
+    }
+
+    private String currentRoomId() {
+        RoomDiscovery directory = RoomDiscovery.current();
+        if (directory == null) return "";
+        try {
+            return directory.stateJson().optString("joinedId", "");
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private String getRoomUrl() {
@@ -203,8 +267,90 @@ public final class MainActivity extends Activity {
         requestPermissions(missing.toArray(new String[0]), MEDIA_PERMISSION_REQUEST);
     }
 
-    /** Lets the room page route call audio and keep the screen awake during calls. */
+    /** Lets the pages pick rooms, route call audio, keep the screen awake during calls, and save downloads. */
     private final class CallBridge {
+        @JavascriptInterface
+        public String rooms() {
+            RoomDiscovery directory = RoomDiscovery.current();
+            return directory == null ? "[]" : directory.roomsJson(true).toString();
+        }
+
+        @JavascriptInterface
+        public String lobbyState() {
+            RoomDiscovery directory = RoomDiscovery.current();
+            return directory == null ? "{}" : directory.stateJson().toString();
+        }
+
+        @JavascriptInterface
+        public void joinRoom(String id) {
+            runOnUiThread(() -> {
+                RoomDiscovery directory = RoomDiscovery.current();
+                if (directory == null || id == null) return;
+                if (id.equals(currentRoomId()) && !getRoomUrl().isEmpty()) {
+                    loadedRoomUrl = null;
+                    return;
+                }
+                directory.join(id);
+            });
+        }
+
+        @JavascriptInterface
+        public void createRoom(String name) {
+            if (!onLobby) return;
+            runOnUiThread(() -> {
+                RoomDiscovery directory = RoomDiscovery.current();
+                if (directory != null) directory.createRoom(name);
+                loadedRoomUrl = null;
+            });
+        }
+
+        @JavascriptInterface
+        public void stopHosting() {
+            if (!onLobby) return;
+            runOnUiThread(() -> {
+                RoomDiscovery directory = RoomDiscovery.current();
+                if (directory != null) directory.stopHosting();
+            });
+        }
+
+        @JavascriptInterface
+        public void leaveRoom() {
+            runOnUiThread(() -> {
+                RoomDiscovery directory = RoomDiscovery.current();
+                if (directory != null) directory.leave();
+            });
+        }
+
+        @JavascriptInterface
+        public void cancelAutoJoin() {
+            runOnUiThread(() -> {
+                RoomDiscovery directory = RoomDiscovery.current();
+                if (directory != null) directory.cancelAutoJoin();
+            });
+        }
+
+        @JavascriptInterface
+        public void openRooms() {
+            runOnUiThread(MainActivity.this::showLobby);
+        }
+
+        @JavascriptInterface
+        public void backToRoom() {
+            runOnUiThread(() -> loadedRoomUrl = null);
+        }
+
+        @JavascriptInterface
+        public String getName() {
+            return getSharedPreferences(LanService.PREFS_NAME, MODE_PRIVATE).getString(LanService.KEY_USER_NAME, "");
+        }
+
+        @JavascriptInterface
+        public void setName(String name) {
+            String cleaned = name == null ? "" : name.trim();
+            if (cleaned.length() > 48) cleaned = cleaned.substring(0, 48);
+            getSharedPreferences(LanService.PREFS_NAME, MODE_PRIVATE).edit().putString(LanService.KEY_USER_NAME, cleaned).apply();
+        }
+
         /** The page hands downloads here directly; WebView does not reliably start downloads from the secure room. */
         @JavascriptInterface
         public void download(String url, String fileName, String mimeType) {
@@ -369,8 +515,12 @@ public final class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
+        if (onLobby && !getRoomUrl().isEmpty()) {
+            // Back from the room list returns to the room you are in.
+            loadedRoomUrl = null;
+        } else if (!onLobby) {
+            // Keep the room (and any call) running instead of closing it.
+            moveTaskToBack(true);
         } else {
             super.onBackPressed();
         }

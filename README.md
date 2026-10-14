@@ -1,27 +1,26 @@
 # Hearth Chat
 
-A local chat room for Android phones, laptops, and tablets on one Wi-Fi network. Hearth Chat phones discover each other automatically and elect one phone to host the shared room. The other phones open that room in the app; a laptop joins with the room address shown in the Android notification or in the chat's “Connect a laptop” card.
+Local chat rooms for Android phones, laptops, and tablets on one Wi-Fi network. Any phone can create a room; everyone else sees the rooms on the Wi‑Fi and chooses which to join. Rooms support chat, files, voice messages, 1‑to‑1 calls and group voice/video calls for 30+ people, with no internet or accounts.
 
 ## How to use
 
-1. Connect all devices to the same Wi-Fi network. Guest networks or router client isolation must be disabled.
-2. Install and open Hearth Chat on each Android phone. The phones discover the shared room automatically; one becomes the host and the others join it.
-3. Open the address shown in any phone's ongoing notification on the laptop or tablet. It looks like `http://192.168.x.x:8787`. A phone already in the room also shows this address in the “Connect a laptop” card.
-4. Use the name button in the top right to set the name shown beside your messages.
+1. Connect all devices to the same Wi‑Fi network. Guest networks or router client isolation must be disabled.
+2. Install and open Hearth Chat on each Android phone. You see the **Rooms** screen:
+   - **Create your own room**: this phone hosts it. Give it a name, or keep the default.
+   - **Rooms on this Wi‑Fi**: every room other phones have created, with who hosts it, how many people are online, and whether a call is live. Tap **Join**.
+   - Nobody is put into a room automatically. The only exception: when you reopen the app, it goes back to the room you were last in if that room is still on the Wi‑Fi. Tap **Stay here** to stop that.
+3. When someone creates a new room, other phones get a notification (**Join** / **See rooms**), and anyone already in a room sees a banner at the top with a Join button.
+4. Tap **Rooms** in a room's header to switch rooms. The back button keeps the room running in the background.
+5. Laptops and tablets: open the address shown on the host phone's Rooms screen (or the room's "Connect a laptop" card) in a browser. Use the `https://…:8788` address for calls and voice messages: the browser warns once because the phone signs its own certificate, so choose **Advanced → Proceed**.
+6. Tap your name to change how others see you. The Android app uses the same name in every room.
 
-The app starts room discovery when it opens and restarts after the phone reboots. Android shows whether this phone hosts or joined the room, plus its address. Messages and media are stored on the elected host phone, so keep that phone powered on and connected to Wi-Fi. Other Android phones and browser clients use the same room and see the same history. A browser also saves messages it receives locally and catches up when it reconnects.
+Each room's messages and files are stored on the phone hosting it, so keep that phone on Wi‑Fi with Hearth running. **Stop hosting** closes the room for everyone; its history stays on that phone for next time.
 
-Share any kind of file: photos, videos, audio, PDFs, Word/Excel/PowerPoint documents, ZIP/RAR/7z archives, APKs and more. Tap the paperclip to choose photos & videos, documents, or any file; you can pick several at once, and on a laptop you can also drag files onto the chat or paste them. Each file shows a type card with its size and a download button, and an upload progress bar while sending. The **Files** button opens everything shared in the room, split into files and photos & videos. Use **Search** to find messages or file names.
+### Calls
 
-**Voice messages:** tap the microphone (shown when the message box is empty), talk, then tap send, or the bin to discard. Voice notes play inline with a waveform, seek and 1×/1.5×/2× speed.
-
-**Voice and video calls:** tap **Call** (or the phone/camera buttons next to someone under "Online now") to call any device that has Hearth open. Calls go directly between the two devices over your Wi‑Fi. During a call you can mute, turn the camera off, flip between front and back cameras on phones, switch speakerphone in the Android app, and share your screen from a laptop. Each call leaves an entry in the chat (answered with duration, missed, declined), with a **Call back** button.
-
-**Chat extras:** reply to a message, react with an emoji (or double-click to ❤️), delete your own messages for everyone, see who is online and who is typing, and jump back to the latest message.
-
-**Secure address for calls (laptops):** browsers only allow the microphone and camera on secure pages, so the host phone also serves the room at `https://192.168.x.x:8788`. The phone signs its own certificate, so a laptop browser warns the first time: choose **Advanced → Proceed**. The Android app handles this automatically. The plain `http://…:8787` address still works for chat and files.
-
-Long-press (or right-click) a message to copy its text, download its file, or copy a file link. Tap a photo to view it full screen. On Android, downloads are saved to the phone's Downloads folder; tap the finished download notification to open it (an APK opens the system installer).
+- **Group calls (30+ people):** tap **Group call** to start one. Everyone in the room sees a banner with **Join voice** / **Join video**, plus an entry in the chat. Everyone can talk; the host phone forwards the voices of the few people speaking at that moment (up to 4) and video from the most recent speakers (6 tiles, or 4 once more than 10 people are in the call), with screen shares shown first. Tap the people icon to see everyone in the call. Mute, camera, flip camera, speaker (Android) and screen sharing (laptop) work as in 1‑to‑1 calls.
+- **1‑to‑1 voice and video calls:** use the phone/camera buttons next to someone under "Online now", or **Call**. These go directly between the two devices.
+- Group calls need Chrome, Edge or the Hearth Android app (they use WebCodecs). Firefox and Safari can chat and make 1‑to‑1 calls.
 
 ## Build the Android app
 
@@ -35,10 +34,11 @@ The debug APK is written to `android/build/outputs/apk/debug/android-debug.apk`.
 
 ## Current limits
 
-- One Android phone hosts the room; the other phones discover and join it. Other devices must be able to reach the host on the same Wi-Fi. Guest networks, router client isolation, or blocked multicast discovery can prevent joining.
+- Each room is hosted by one Android phone, and a phone hosts at most one room. Other devices must be able to reach the host on the same Wi-Fi. Guest networks, router client isolation, or blocked multicast discovery can prevent rooms from showing up.
 - This version uses one shared home room, with no accounts. Calls are encrypted between devices (WebRTC), but chat messages and files are not end-to-end encrypted. Use it only on a trusted home network.
-- Calls are one-to-one. To receive a call, Hearth must be open on that device (in the foreground on Android).
-- The phone hosting the room must run Hearth 2.0 for calls, voice messages, reactions and replies; update every phone so any of them can become host.
+- To receive a call, Hearth must be open on that device (in the foreground on Android).
+- Group calls run through the host phone. Large calls work best when the host phone is on 5 GHz Wi‑Fi and plugged in; with 30 people and video on, it forwards roughly 20–30 Mbit/s.
+- Install version 3.0 on every phone. Older versions still auto-join rooms and cannot create named rooms or join group calls.
 - Shared files are limited to 1 GB each. Browsers keep offline copies only of photos and videos up to 25 MB; other files are downloaded from the host phone when needed.
 - Documents, archives, APKs and other non-media files are always served as downloads, never opened inside the chat page.
 - There is no 5,000-character input cap. A single message can be up to 10 MB to keep transfers and phone storage reliable.
